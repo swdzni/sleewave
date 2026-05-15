@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/playlist.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../view_models/playlists_view_model.dart';
 import '../widgets/playlist_card.dart';
+import '../widgets/playlist_editor_sheet.dart';
 
 class PlaylistsScreen extends ConsumerStatefulWidget {
   const PlaylistsScreen({super.key});
@@ -28,7 +30,7 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
     return AppScaffold(
       safeBottom: false,
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 170),
+        padding: const EdgeInsets.only(bottom: 220),
         children: [
           Row(
             children: [
@@ -53,6 +55,9 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
               PlaylistCard(
                 playlist: playlist,
                 onTap: () => context.push('/playlists/${playlist.id}'),
+                onRename: playlist.isFavorite
+                    ? null
+                    : () => _showRenameSheet(context, vm, playlist),
               ),
         ],
       ),
@@ -63,31 +68,37 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
     BuildContext context,
     PlaylistsViewModel vm,
   ) async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
+    final name = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New playlist'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Create'),
-          ),
-        ],
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (context) => const PlaylistEditorSheet(
+        title: 'New playlist',
+        actionLabel: 'Create',
       ),
     );
-    controller.dispose();
     if (name != null) {
       await vm.create(name);
+    }
+  }
+
+  Future<void> _showRenameSheet(
+    BuildContext context,
+    PlaylistsViewModel vm,
+    Playlist playlist,
+  ) async {
+    final name = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (context) => PlaylistEditorSheet(
+        title: 'Rename playlist',
+        actionLabel: 'Rename',
+        initialName: playlist.name,
+      ),
+    );
+    if (name != null) {
+      await vm.rename(playlist, name);
     }
   }
 }

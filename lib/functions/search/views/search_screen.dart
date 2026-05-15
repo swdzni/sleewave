@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../player/view_models/player_view_model.dart';
 import '../view_models/search_view_model.dart';
 import '../widgets/search_result_list.dart';
 import '../widgets/source_chip_bar.dart';
@@ -15,10 +17,20 @@ class SearchScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vm = ref.watch(searchViewModelProvider);
     final state = vm.state;
+    final currentTrackId = ref
+        .watch(playerViewModelProvider)
+        .state
+        .snapshot
+        .currentTrack
+        ?.id;
+    final sourceNames = {
+      for (final source in state.availableSources) source.id: source.name,
+    };
+    final downloadProgress = ref.watch(downloadServiceProvider).progress;
     return AppScaffold(
       safeBottom: false,
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 170),
+        padding: const EdgeInsets.only(bottom: 220),
         children: [
           Text('Search', style: Theme.of(context).textTheme.headlineLarge),
           const SizedBox(height: 14),
@@ -32,6 +44,7 @@ class SearchScreen extends ConsumerWidget {
             sources: state.availableSources,
             selectedSourceIds: state.selectedSourceIds,
             onToggle: vm.toggleSource,
+            onSelectAll: vm.selectAllSources,
           ),
           if (state.isSearching)
             const Padding(
@@ -52,7 +65,7 @@ class SearchScreen extends ConsumerWidget {
             EmptyState(
               title: state.hasBackend
                   ? 'Search your Online Library sources.'
-                  : 'Connect Online Library in Settings or use your offline Library.',
+                  : 'Search your offline Library.',
               icon: Icons.search_rounded,
             )
           else if (state.allResults.isEmpty && !state.isSearching)
@@ -65,6 +78,9 @@ class SearchScreen extends ConsumerWidget {
               onLike: vm.toggleLike,
               onDownload: vm.downloadTrack,
               onDelete: vm.deleteTrack,
+              currentTrackId: currentTrackId,
+              sourceNames: sourceNames,
+              downloadProgress: downloadProgress,
             ),
         ],
       ),

@@ -47,7 +47,7 @@ class SseClient {
     final dataLines = <String>[];
 
     await for (final line
-        in byteStream.transform(utf8.decoder).transform(const LineSplitter())) {
+        in utf8.decoder.bind(byteStream).transform(const LineSplitter())) {
       if (line.isEmpty) {
         final event = _decodeEvent(eventName, dataLines.join('\n'));
         if (event != null) {

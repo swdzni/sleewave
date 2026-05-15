@@ -21,6 +21,7 @@ class PlaybackSnapshot {
     this.duration = Duration.zero,
     this.mode = PlaybackMode.normal,
     this.queue = const [],
+    this.error,
   });
 
   final Track? currentTrack;
@@ -30,6 +31,7 @@ class PlaybackSnapshot {
   final Duration duration;
   final PlaybackMode mode;
   final List<Track> queue;
+  final String? error;
 
   bool get hasTrack => currentTrack != null;
 
@@ -41,6 +43,7 @@ class PlaybackSnapshot {
     Duration? duration,
     PlaybackMode? mode,
     List<Track>? queue,
+    Object? error = _sentinel,
   }) {
     return PlaybackSnapshot(
       currentTrack: currentTrack == _sentinel
@@ -52,6 +55,7 @@ class PlaybackSnapshot {
       duration: duration ?? this.duration,
       mode: mode ?? this.mode,
       queue: queue ?? this.queue,
+      error: error == _sentinel ? this.error : error as String?,
     );
   }
 }

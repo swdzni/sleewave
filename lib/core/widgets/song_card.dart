@@ -16,8 +16,11 @@ class SongCard extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.onLike,
+    this.onAddToPlaylist,
     this.onDownload,
     this.onDelete,
+    this.sourceLabel,
+    this.downloadProgress,
   });
 
   final Track track;
@@ -26,22 +29,29 @@ class SongCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onLike;
+  final VoidCallback? onAddToPlaylist;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
+  final String? sourceLabel;
+  final double? downloadProgress;
 
   @override
   Widget build(BuildContext context) {
     final compact = mode == SongCardMode.compact;
     final coverSize = mode == SongCardMode.featured
-        ? 76.0
+        ? 52.0
         : compact
-        ? 46.0
-        : 58.0;
+        ? 38.0
+        : 44.0;
+    final height = compact ? 66.0 : 94.0;
+    final isDownloading = downloadProgress != null;
     return Semantics(
       button: true,
       label: 'Play ${track.title}',
       child: AnimatedContainer(
+        key: ValueKey('song-card-${track.id}'),
         duration: const Duration(milliseconds: 260),
+        height: height,
         margin: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
           color: context.palette.surface,
@@ -63,7 +73,10 @@ class SongCard extends StatelessWidget {
           onTap: onTap,
           onLongPress: onLongPress,
           child: Padding(
-            padding: EdgeInsets.all(compact ? 8 : 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 8 : 10,
+              vertical: 8,
+            ),
             child: Row(
               children: [
                 CoverArt(
@@ -75,6 +88,7 @@ class SongCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -91,8 +105,18 @@ class SongCard extends StatelessWidget {
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       if (!compact) ...[
-                        const SizedBox(height: 6),
-                        TrackBadges(track: track),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          height: 22,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: TrackBadges(
+                              track: track,
+                              sourceLabel: sourceLabel,
+                            ),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -102,24 +126,53 @@ class SongCard extends StatelessWidget {
                   track.displayDuration,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                const SizedBox(width: 2),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  key: ValueKey('like-${track.id}-${track.isLiked}'),
                   tooltip: track.isLiked ? 'Unlike' : 'Like',
                   onPressed: onLike,
                   icon: Icon(
-                    track.isLiked ? Icons.favorite : Icons.favorite_border,
+                    track.isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     color: track.isLiked
                         ? context.palette.danger
                         : context.palette.secondaryText,
                   ),
                 ),
-                IconButton(
-                  tooltip: track.isLocalPlayable ? 'Delete' : 'Download',
-                  onPressed: track.isLocalPlayable ? onDelete : onDownload,
-                  icon: Icon(
-                    track.isLocalPlayable
-                        ? Icons.delete_outline_rounded
-                        : Icons.download_rounded,
+                if (!compact)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Add to playlist',
+                    onPressed: onAddToPlaylist,
+                    icon: const Icon(Icons.playlist_add_rounded),
                   ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: track.isLocalPlayable ? 'Delete' : 'Download',
+                  onPressed: isDownloading
+                      ? null
+                      : track.isLocalPlayable
+                      ? onDelete
+                      : onDownload,
+                  icon: isDownloading
+                      ? SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            value:
+                                (downloadProgress ?? 0) > 0 &&
+                                    (downloadProgress ?? 0) < 1
+                                ? downloadProgress
+                                : null,
+                          ),
+                        )
+                      : Icon(
+                          track.isLocalPlayable
+                              ? Icons.delete_outline_rounded
+                              : Icons.download_rounded,
+                        ),
                 ),
               ],
             ),

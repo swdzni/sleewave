@@ -89,4 +89,25 @@ class ApiClient {
       throw ApiException.fromDio(error);
     }
   }
+
+  Future<Response<ResponseBody>> postStream(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    Duration? receiveTimeout,
+  }) async {
+    try {
+      return await _dio.post<ResponseBody>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: Options(
+          responseType: ResponseType.stream,
+          receiveTimeout: receiveTimeout ?? const Duration(minutes: 5),
+        ),
+      );
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
 }

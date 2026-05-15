@@ -76,17 +76,22 @@ class MiniPlayer extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
-                  onPressed: vm.togglePlayPause,
-                  icon: Icon(
-                    snapshot.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                  ),
+                  onPressed: snapshot.isBuffering ? null : vm.togglePlayPause,
+                  icon: snapshot.isBuffering
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.4),
+                        )
+                      : Icon(
+                          snapshot.isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
                 ),
                 IconButton(
-                  tooltip: 'Stop',
-                  onPressed: vm.stop,
-                  icon: const Icon(Icons.stop_rounded),
+                  tooltip: 'Next',
+                  onPressed: vm.next,
+                  icon: const Icon(Icons.skip_next_rounded),
                 ),
               ],
             ),

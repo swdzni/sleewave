@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/models/playlist.dart';
 import '../../../core/models/track.dart';
 import '../../../core/providers.dart';
 import '../../../core/repositories/playlist_repository.dart';
@@ -23,6 +24,7 @@ class PlaylistDetailViewModel extends SafeChangeNotifier {
   final TrackRepository _tracks;
   final Ref _ref;
   PlaylistDetailState _state = const PlaylistDetailState();
+  Playlist? _playlist;
 
   PlaylistDetailState get state => _state;
 
@@ -32,9 +34,11 @@ class PlaylistDetailViewModel extends SafeChangeNotifier {
       (item) => item.id == _playlistId,
       orElse: () => playlists.first,
     );
+    _playlist = playlist;
     _state = PlaylistDetailState(
       loading: false,
       name: playlist.name,
+      isFavorite: playlist.isFavorite,
       tracks: await _playlists.tracksForPlaylist(_playlistId),
     );
     notifyListeners();
@@ -51,14 +55,42 @@ class PlaylistDetailViewModel extends SafeChangeNotifier {
     await _ref.read(playerViewModelProvider).play(queue.first, queue: queue);
   }
 
+  Future<void> playFrom(Track track) async {
+    await _ref.read(playerViewModelProvider).play(track, queue: _state.tracks);
+  }
+
   Future<void> remove(Track track) async {
     await _playlists.removeTrack(_playlistId, track);
+    notifyLibraryChanged(_ref);
+    await load();
+  }
+
+  Future<void> rename(String name) async {
+    final playlist = _playlist;
+    if (playlist == null || playlist.isFavorite || name.trim().isEmpty) {
+      return;
+    }
+    await _playlists.rename(playlist, name);
+    notifyLibraryChanged(_ref);
     await load();
   }
 
   Future<void> toggleLike(Track track) async {
-    await _tracks.toggleLike(track);
+    final updated = await _tracks.toggleLike(track);
+    _ref.read(playerViewModelProvider).replaceCurrentTrack(updated);
+    replaceTrack(updated);
+    notifyLibraryChanged(_ref);
     await load();
+  }
+
+  void replaceTrack(Track updated) {
+    _state = _state.copyWith(
+      tracks: [
+        for (final track in _state.tracks)
+          track.id == updated.id ? updated : track,
+      ],
+    );
+    notifyListeners();
   }
 
   bool get isFavorite => _playlistId == AppConstants.favoritePlaylistId;
@@ -66,10 +98,14 @@ class PlaylistDetailViewModel extends SafeChangeNotifier {
 
 final playlistDetailViewModelProvider = ChangeNotifierProvider.autoDispose
     .family<PlaylistDetailViewModel, String>((ref, playlistId) {
-      return PlaylistDetailViewModel(
+      final vm = PlaylistDetailViewModel(
         playlistId,
         ref.read(playlistRepositoryProvider),
         ref.read(trackRepositoryProvider),
         ref,
       );
+      ref.listen<int>(libraryRevisionProvider, (previous, next) {
+        vm.load();
+      });
+      return vm;
     });

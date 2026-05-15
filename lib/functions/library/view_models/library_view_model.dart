@@ -34,24 +34,49 @@ class LibraryViewModel extends SafeChangeNotifier {
 
   Future<void> importFiles() async {
     await _library.importFiles();
+    notifyLibraryChanged(_ref);
     await load();
   }
 
   Future<void> deleteTrack(Track track) async {
     await _tracks.deleteLocalState(track);
+    notifyLibraryChanged(_ref);
     await load();
+  }
+
+  Future<Track> toggleLike(Track track) async {
+    final updated = await _tracks.toggleLike(track);
+    _state = LibraryState(
+      loading: _state.loading,
+      folderPath: _state.folderPath,
+      downloaded: _replaceTrack(_state.downloaded, updated),
+      imported: _replaceTrack(_state.imported, updated),
+    );
+    notifyListeners();
+    notifyLibraryChanged(_ref);
+    return updated;
   }
 
   Future<void> play(Track track) =>
       _ref.read(playerViewModelProvider).play(track);
+
+  List<Track> _replaceTrack(List<Track> tracks, Track updated) {
+    return [
+      for (final track in tracks) track.id == updated.id ? updated : track,
+    ];
+  }
 }
 
 final libraryViewModelProvider =
     ChangeNotifierProvider.autoDispose<LibraryViewModel>((ref) {
-      return LibraryViewModel(
+      final vm = LibraryViewModel(
         ref.read(trackRepositoryProvider),
         ref.read(libraryRepositoryProvider),
         ref.read(fileStorageProvider),
         ref,
       );
+      ref.listen<int>(libraryRevisionProvider, (previous, next) {
+        vm.load();
+      });
+      return vm;
     });

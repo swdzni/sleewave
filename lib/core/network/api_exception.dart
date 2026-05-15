@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 class ApiException implements Exception {
@@ -55,8 +57,9 @@ class ApiException implements Exception {
     String message = 'Something went wrong.';
     Map<String, dynamic> details = const {};
 
-    if (data is Map) {
-      final error = data['error'];
+    final decoded = _decodeErrorData(data);
+    if (decoded is Map) {
+      final error = decoded['error'];
       if (error is Map) {
         code = error['code'] as String? ?? code;
         message = error['message'] as String? ?? message;
@@ -65,6 +68,9 @@ class ApiException implements Exception {
           details = Map<String, dynamic>.from(rawDetails);
         }
       }
+    }
+    if (code == 'http_error' && statusCode != null) {
+      code = 'http_$statusCode';
     }
 
     return ApiException(
@@ -101,8 +107,21 @@ class ApiException implements Exception {
       case 'internal_server_error':
         return 'Online Library had a problem. Try again.';
       default:
+        if (fallback == 'Something went wrong.' &&
+            statusCodeMessage(code) != null) {
+          return statusCodeMessage(code)!;
+        }
         return fallback;
     }
+  }
+
+  static String? statusCodeMessage(String code) {
+    return switch (code) {
+      'http_502' => 'Track could not be prepared. Try again.',
+      'http_500' => 'Online Library had a problem. Try again.',
+      'http_503' => 'Source is unavailable.',
+      _ => null,
+    };
   }
 
   static bool _isRecoverable(String code, int? statusCode) {
@@ -110,8 +129,27 @@ class ApiException implements Exception {
         code == 'cache_entry_not_found' ||
         code == 'provider_unavailable' ||
         code == 'track_preparation_failed' ||
+        statusCode == 502 ||
         statusCode == 500 ||
         statusCode == 503;
+  }
+
+  static Object? _decodeErrorData(Object? data) {
+    if (data is List<int>) {
+      try {
+        return jsonDecode(utf8.decode(data));
+      } catch (_) {
+        return data;
+      }
+    }
+    if (data is String) {
+      try {
+        return jsonDecode(data);
+      } catch (_) {
+        return data;
+      }
+    }
+    return data;
   }
 
   @override

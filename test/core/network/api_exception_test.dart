@@ -28,4 +28,20 @@ void main() {
     expect(error.message, 'Source is unavailable.');
     expect(error.isRecoverable, isTrue);
   });
+
+  test('maps preparation gateway errors to a retryable message', () {
+    final error = ApiException.fromResponse(502, {
+      'error': {'code': 'track_preparation_failed'},
+    });
+
+    expect(error.message, 'Track could not be prepared. Try again.');
+    expect(error.isRecoverable, isTrue);
+  });
+
+  test('maps plain server errors to friendly messages', () {
+    final error = ApiException.fromResponse(500, 'not json');
+
+    expect(error.message, 'Online Library had a problem. Try again.');
+    expect(error.isRecoverable, isTrue);
+  });
 }

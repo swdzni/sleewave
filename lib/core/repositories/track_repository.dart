@@ -157,22 +157,21 @@ class TrackRepository {
     return merged;
   }
 
-  Future<void> markDownloaded({
+  Future<Track> markDownloaded({
     required Track track,
     required String localPath,
   }) async {
-    await upsert(
+    return upsert(
       track.copyWith(
         localPath: localPath,
         localOrigin: AppConstants.localOriginDownloaded,
         availability: track.availability.copyWith(onDevice: true),
-        updatedAt: DateTime.now(),
       ),
     );
   }
 
-  Future<void> toggleLike(Track track) async {
-    await upsert(track.copyWith(isLiked: !track.isLiked));
+  Future<Track> toggleLike(Track track) {
+    return upsert(track.copyWith(isLiked: !track.isLiked));
   }
 
   Future<void> recordPlayed(Track track) async {
@@ -265,22 +264,25 @@ class TrackRepository {
   Future<Track?> _findByIdentity(Track track) async {
     DbTrack? row;
     if (track.trackKey != null) {
-      row =
-          await (_db.select(_db.tracks)
-                ..where((table) => table.trackKey.equals(track.trackKey!)))
-              .getSingleOrNull();
+      final rows = await (_db.select(
+        _db.tracks,
+      )..where((table) => table.trackKey.equals(track.trackKey!))).get();
+      row = _bestIdentityMatch(rows, track);
     }
     if (row == null && track.baseTrackKey != null) {
-      row =
+      final rows =
           await (_db.select(_db.tracks)..where(
                 (table) => table.baseTrackKey.equals(track.baseTrackKey!),
               ))
-              .getSingleOrNull();
+              .get();
+      row = _bestIdentityMatch(rows, track);
     }
     if (row == null) {
       final title = _normalize(track.title);
       final artist = _normalize(track.artist);
-      final rows = await _db.select(_db.tracks).get();
+      final rows = await (_db.select(
+        _db.tracks,
+      )..where((table) => table.localPath.isNotNull())).get();
       for (final candidate in rows) {
         final sameTitle = _normalize(candidate.title) == title;
         final sameArtist = _normalize(candidate.artist) == artist;
@@ -295,6 +297,45 @@ class TrackRepository {
       }
     }
     return row == null ? null : _fromRow(row);
+  }
+
+  DbTrack? _bestIdentityMatch(List<DbTrack> rows, Track incoming) {
+    if (rows.isEmpty) {
+      return null;
+    }
+    final sorted = [...rows]
+      ..sort((a, b) {
+        final localCompare = _boolScore(
+          b.localPath != null,
+        ).compareTo(_boolScore(a.localPath != null));
+        if (localCompare != 0) {
+          return localCompare;
+        }
+        final durationCompare = _durationScore(
+          b,
+          incoming,
+        ).compareTo(_durationScore(a, incoming));
+        if (durationCompare != 0) {
+          return durationCompare;
+        }
+        final updatedCompare = b.updatedAt.compareTo(a.updatedAt);
+        if (updatedCompare != 0) {
+          return updatedCompare;
+        }
+        return a.id.compareTo(b.id);
+      });
+    return sorted.first;
+  }
+
+  int _boolScore(bool value) => value ? 1 : 0;
+
+  int _durationScore(DbTrack row, Track incoming) {
+    if (row.durationSeconds == null || incoming.durationSeconds == null) {
+      return 0;
+    }
+    return (row.durationSeconds! - incoming.durationSeconds!).abs() <= 5
+        ? 1
+        : 0;
   }
 
   String _normalize(String value) {

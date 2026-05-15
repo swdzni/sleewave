@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 
 import '../constants/api_paths.dart';
 import '../models/source_info.dart';
@@ -12,6 +13,7 @@ class BackendRepository {
 
   final ApiClient _apiClient;
   final SseClient _sseClient;
+  final _uuid = const Uuid();
 
   Future<bool> checkHealth() async {
     final json = await _apiClient.getJson(ApiPaths.health);
@@ -51,7 +53,7 @@ class BackendRepository {
         .map(
           (item) => Track.remoteFromJson(
             Map<String, dynamic>.from(item as Map),
-            id: '',
+            id: _uuid.v4(),
           ),
         )
         .toList();
@@ -59,6 +61,15 @@ class BackendRepository {
 
   Uri getStreamUrl(String resultId) {
     return _apiClient.buildUri(ApiPaths.stream(resultId));
+  }
+
+  Future<void> prepareStream(String resultId) async {
+    final response = await _apiClient.postStream(ApiPaths.stream(resultId));
+    await response.data?.stream.listen(null).cancel();
+  }
+
+  Future<Response<ResponseBody>> openStream(String resultId) {
+    return _apiClient.postStream(ApiPaths.stream(resultId));
   }
 
   Future<void> streamTrackPost(String resultId) async {

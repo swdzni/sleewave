@@ -4,9 +4,10 @@ import '../models/track.dart';
 import '../theme/app_colors.dart';
 
 class TrackBadges extends StatelessWidget {
-  const TrackBadges({super.key, required this.track});
+  const TrackBadges({super.key, required this.track, this.sourceLabel});
 
   final Track track;
+  final String? sourceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -18,11 +19,12 @@ class TrackBadges extends StatelessWidget {
     } else if (track.resultId != null) {
       badges.add(const _Badge(label: 'Remote', icon: Icons.cloud));
     }
-    if (track.isLiked) {
-      badges.add(const _Badge(label: 'Liked', icon: Icons.favorite));
-    }
     if (track.isMix) {
       badges.add(const _Badge(label: 'Mix', icon: Icons.graphic_eq));
+    }
+    final source = sourceLabel ?? track.sourceId;
+    if (source != null && source.trim().isNotEmpty) {
+      badges.add(_Badge(label: source, icon: Icons.link_rounded));
     }
     return Wrap(spacing: 6, runSpacing: 4, children: badges);
   }

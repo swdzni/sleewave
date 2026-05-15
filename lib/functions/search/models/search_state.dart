@@ -28,6 +28,20 @@ class SearchState {
   bool get hasBackend => status.isConnected;
   List<Track> get allResults => [...localMatches, ...streamedResults];
 
+  List<String> effectiveSourceIds() {
+    final searchable = availableSources
+        .where((source) => source.canSearch)
+        .map((source) => source.id)
+        .toList();
+    if (selectedSourceIds.isEmpty) {
+      if (searchable.isEmpty) {
+        return const [];
+      }
+      return searchable;
+    }
+    return selectedSourceIds.where(searchable.contains).toList();
+  }
+
   SearchState copyWith({
     String? query,
     List<String>? selectedSourceIds,

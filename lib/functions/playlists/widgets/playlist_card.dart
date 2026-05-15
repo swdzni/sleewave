@@ -5,10 +5,16 @@ import '../../../core/theme/app_colors.dart';
 import 'playlist_cover.dart';
 
 class PlaylistCard extends StatelessWidget {
-  const PlaylistCard({super.key, required this.playlist, required this.onTap});
+  const PlaylistCard({
+    super.key,
+    required this.playlist,
+    required this.onTap,
+    this.onRename,
+  });
 
   final Playlist playlist;
   final VoidCallback onTap;
+  final VoidCallback? onRename;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +31,7 @@ class PlaylistCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const PlaylistCover(),
+            PlaylistCover(colorHex: playlist.coverPath ?? playlist.id),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -39,7 +45,14 @@ class PlaylistCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded),
+            if (onRename != null)
+              IconButton(
+                tooltip: 'Rename',
+                onPressed: onRename,
+                icon: const Icon(Icons.edit_rounded),
+              )
+            else
+              const Icon(Icons.chevron_right_rounded),
           ],
         ),
       ),

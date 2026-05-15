@@ -100,17 +100,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/player',
         name: RouteNames.player,
         pageBuilder: (context, state) =>
-            _bottomUpPage(state, const PlayerScreen()),
+            _bottomUpPage(state, const PlayerScreen(), opaque: false),
       ),
     ],
   );
 });
 
-CustomTransitionPage<void> _bottomUpPage(GoRouterState state, Widget child) {
+CustomTransitionPage<void> _bottomUpPage(
+  GoRouterState state,
+  Widget child, {
+  bool opaque = true,
+}) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     name: state.name,
     child: child,
+    opaque: opaque,
     transitionDuration: const Duration(milliseconds: 320),
     reverseTransitionDuration: const Duration(milliseconds: 260),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {

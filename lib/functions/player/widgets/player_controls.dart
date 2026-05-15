@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/glow_button.dart';
 import '../view_models/player_view_model.dart';
 import 'playback_mode_button.dart';
+import 'queue_sheet.dart';
 
 class PlayerControls extends ConsumerWidget {
   const PlayerControls({super.key});
@@ -37,6 +38,12 @@ class PlayerControls extends ConsumerWidget {
         ),
         const SizedBox(width: 16),
         const PlaybackModeButton(),
+        const SizedBox(width: 16),
+        GlowButton(
+          icon: Icons.queue_music_rounded,
+          onPressed: () => showQueueSheet(context),
+          semanticLabel: 'Queue',
+        ),
       ],
     );
   }

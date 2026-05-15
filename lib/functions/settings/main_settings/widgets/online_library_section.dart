@@ -14,7 +14,6 @@ class OnlineLibrarySection extends StatelessWidget {
     required this.checking,
     required this.httpWarning,
     required this.onCheck,
-    required this.onSave,
     required this.onClear,
     required this.onOpenGuide,
   });
@@ -25,7 +24,6 @@ class OnlineLibrarySection extends StatelessWidget {
   final bool checking;
   final bool httpWarning;
   final VoidCallback onCheck;
-  final VoidCallback onSave;
   final VoidCallback onClear;
   final VoidCallback onOpenGuide;
 
@@ -102,11 +100,6 @@ class OnlineLibrarySection extends StatelessWidget {
                     )
                   : const Icon(Icons.wifi_tethering_rounded),
               label: const Text('Check'),
-            ),
-            FilledButton.icon(
-              onPressed: onSave,
-              icon: const Icon(Icons.save_rounded),
-              label: const Text('Save'),
             ),
             OutlinedButton.icon(
               onPressed: onClear,

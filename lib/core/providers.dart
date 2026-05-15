@@ -70,6 +70,16 @@ final searchServiceProvider = Provider<SearchService>((ref) {
   return const SearchService();
 });
 
+final libraryRevisionProvider = StateProvider<int>((ref) => 0);
+
+void notifyLibraryChanged(Ref ref) {
+  ref.read(libraryRevisionProvider.notifier).state++;
+}
+
+void notifyLibraryChangedFromWidget(WidgetRef ref) {
+  ref.read(libraryRevisionProvider.notifier).state++;
+}
+
 final queueServiceProvider = ChangeNotifierProvider<QueueService>((ref) {
   return QueueService();
 });

@@ -74,10 +74,15 @@ class AppStartupController extends SafeChangeNotifier {
       notifyListeners();
       await sync.syncDeviceLibrary(backend, settings);
       await sync.retryPending(backend);
-      _savedSongs = await backend.getSavedSongs();
-      for (final song in _savedSongs) {
-        await tracks.mergeRemoteTrack(song);
+      final savedSongs = <Track>[];
+      final seenIds = <String>{};
+      for (final song in await backend.getSavedSongs()) {
+        final merged = await tracks.mergeRemoteTrack(song);
+        if (seenIds.add(merged.id)) {
+          savedSongs.add(merged);
+        }
       }
+      _savedSongs = savedSongs;
       notifyListeners();
     } catch (error) {
       _status = ServerStatus.problem('$error');

@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/playlist.dart';
 import '../../../core/providers.dart';
 import '../../../core/repositories/playlist_repository.dart';
 import '../../../core/utils/safe_change_notifier.dart';
 import '../models/playlists_state.dart';
 
 class PlaylistsViewModel extends SafeChangeNotifier {
-  PlaylistsViewModel(this._playlists);
+  PlaylistsViewModel(this._playlists, this._ref);
 
   final PlaylistRepository _playlists;
+  final Ref _ref;
   PlaylistsState _state = const PlaylistsState();
 
   PlaylistsState get state => _state;
@@ -28,11 +31,25 @@ class PlaylistsViewModel extends SafeChangeNotifier {
       return;
     }
     await _playlists.create(name);
+    notifyLibraryChanged(_ref);
+    await load();
+  }
+
+  Future<void> rename(Playlist playlist, String name) async {
+    if (name.trim().isEmpty || playlist.isFavorite) {
+      return;
+    }
+    await _playlists.rename(playlist, name);
+    notifyLibraryChanged(_ref);
     await load();
   }
 }
 
 final playlistsViewModelProvider =
     ChangeNotifierProvider.autoDispose<PlaylistsViewModel>((ref) {
-      return PlaylistsViewModel(ref.read(playlistRepositoryProvider));
+      final vm = PlaylistsViewModel(ref.read(playlistRepositoryProvider), ref);
+      ref.listen<int>(libraryRevisionProvider, (previous, next) {
+        vm.load();
+      });
+      return vm;
     });

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,5 +32,15 @@ data: {"event":"done","emitted":1}
     expect((events[1] as SearchTrackFound).track.title, 'Blue Pulse');
     expect(events[2], isA<SearchWarning>());
     expect(events[3], isA<SearchDone>());
+  });
+
+  test('parses byte streams backed by Uint8List chunks', () async {
+    final stream = Stream<List<int>>.value(
+      Uint8List.fromList(utf8.encode('event: done\ndata: {"emitted":0}\n\n')),
+    );
+
+    final events = await SseClient(Dio()).parse(stream).toList();
+
+    expect(events.single, isA<SearchDone>());
   });
 }

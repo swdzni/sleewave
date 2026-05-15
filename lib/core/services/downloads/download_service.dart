@@ -21,13 +21,13 @@ class DownloadService extends SafeChangeNotifier {
 
   Map<String, double> get progress => Map.unmodifiable(_progress);
 
-  Future<void> download({
+  Future<Track?> download({
     required Track track,
     required BackendRepository backend,
     required AppSettings settings,
   }) async {
     if (track.resultId == null || _active.contains(track.id)) {
-      return;
+      return null;
     }
     _active.add(track.id);
     _progress[track.id] = 0;
@@ -52,7 +52,10 @@ class DownloadService extends SafeChangeNotifier {
         artist: track.displayArtist,
         title: track.title,
       );
-      await _tracks.markDownloaded(track: track, localPath: finalFile.path);
+      final updated = await _tracks.markDownloaded(
+        track: track,
+        localPath: finalFile.path,
+      );
       try {
         await backend.confirmDownload(
           deviceId: settings.deviceId,
@@ -68,12 +71,19 @@ class DownloadService extends SafeChangeNotifier {
           resultId: track.resultId,
         );
       }
+      return updated;
     } on ApiException catch (error) {
       if (error.code == 'track_already_on_device') {
-        await _tracks.markDownloaded(
-          track: track,
-          localPath: track.localPath ?? '',
-        );
+        final localPath = track.localPath;
+        if (localPath != null && localPath.isNotEmpty) {
+          return _tracks.markDownloaded(track: track, localPath: localPath);
+        } else {
+          return _tracks.upsert(
+            track.copyWith(
+              availability: track.availability.copyWith(onDevice: true),
+            ),
+          );
+        }
       } else {
         rethrow;
       }

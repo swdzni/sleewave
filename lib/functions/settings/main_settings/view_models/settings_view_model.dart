@@ -10,11 +10,28 @@ import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/utils/safe_change_notifier.dart';
 import '../models/settings_state.dart';
 
+typedef BackendRepositoryFactory = BackendRepository Function(String baseUrl);
+typedef StartupRefresh = Future<void> Function({bool keepConnectedStatus});
+
 class SettingsViewModel extends SafeChangeNotifier {
-  SettingsViewModel(this._theme, this._startup);
+  SettingsViewModel(
+    this._theme,
+    this._startup, {
+    BackendRepositoryFactory? backendFactory,
+    StartupRefresh? refreshBackend,
+  }) : _backendFactory =
+           backendFactory ??
+           ((baseUrl) => BackendRepository(ApiClient(baseUrl: baseUrl))),
+       _refreshBackend =
+           refreshBackend ??
+           (({bool keepConnectedStatus = false}) => _startup.refreshBackend(
+             keepConnectedStatus: keepConnectedStatus,
+           ));
 
   final ThemeController _theme;
   final AppStartupController _startup;
+  final BackendRepositoryFactory _backendFactory;
+  final StartupRefresh _refreshBackend;
   late SettingsState _state = SettingsState(
     settings: _theme.settings,
     status: _startup.status,
@@ -67,9 +84,15 @@ class SettingsViewModel extends SafeChangeNotifier {
         httpWarning: AppSettings.shouldWarnForHttp(url),
       );
       notifyListeners();
-      final backend = BackendRepository(ApiClient(baseUrl: url));
+      final backend = _backendFactory(url);
       final sources = await backend.getSources();
+      final settings = _theme.settings.copyWith(
+        backendBaseUrl: url,
+        selectedSourceIds: const [],
+      );
+      await _theme.saveSettings(settings);
       _state = _state.copyWith(
+        settings: settings,
         checking: false,
         status: const ServerStatus.connected(),
         sources: sources,
@@ -77,68 +100,7 @@ class SettingsViewModel extends SafeChangeNotifier {
         message: 'Connected',
       );
       notifyListeners();
-    } catch (error) {
-      _state = _state.copyWith(
-        checking: false,
-        status: ServerStatus.problem('$error'),
-        checkedUrl: null,
-        message: '$error',
-      );
-      notifyListeners();
-    }
-  }
-
-  Future<void> saveOnlineLibrary(String rawUrl) async {
-    try {
-      final normalized = AppSettings.normalizeBackendUrl(rawUrl);
-      final wasConnected =
-          _state.status.isConnected &&
-          normalized != null &&
-          normalized == (_state.checkedUrl ?? _state.settings.backendBaseUrl);
-      final settings = _theme.settings.copyWith(
-        backendBaseUrl: normalized,
-        selectedSourceIds: normalized == null
-            ? const []
-            : _state.sources
-                  .where((source) => source.canSearch)
-                  .map((source) => source.id)
-                  .toList(),
-      );
-      await _theme.saveSettings(settings);
-      _state = _state.copyWith(
-        settings: settings,
-        checking: !wasConnected && normalized != null,
-        status: normalized == null
-            ? const ServerStatus.notConfigured()
-            : wasConnected
-            ? _state.status
-            : const ServerStatus.checking(),
-        checkedUrl: normalized == null ? null : _state.checkedUrl,
-        message: normalized == null
-            ? 'Cleared'
-            : wasConnected
-            ? 'Saved and connected'
-            : 'Saved',
-        httpWarning: AppSettings.shouldWarnForHttp(normalized),
-      );
-      notifyListeners();
-      if (normalized == null) {
-        await _startup.refreshBackend();
-        load();
-        return;
-      }
-      await _startup.refreshBackend(keepConnectedStatus: wasConnected);
-      _state = _state.copyWith(
-        settings: _theme.settings,
-        status: _startup.status,
-        sources: _startup.sources,
-        checking: false,
-        checkedUrl: _startup.status.isConnected ? normalized : null,
-        message: _startup.status.isConnected
-            ? 'Saved and connected'
-            : _startup.status.label,
-      );
-      notifyListeners();
+      await _refreshBackend(keepConnectedStatus: true);
     } catch (error) {
       _state = _state.copyWith(
         checking: false,
@@ -164,9 +126,7 @@ class SettingsViewModel extends SafeChangeNotifier {
     await _theme.saveSettings(settings);
     _state = _state.copyWith(settings: settings, message: 'Saved');
     notifyListeners();
-    await _startup.refreshBackend(
-      keepConnectedStatus: _startup.status.isConnected,
-    );
+    await _refreshBackend(keepConnectedStatus: _startup.status.isConnected);
   }
 
   Future<void> clear() async {
@@ -175,7 +135,7 @@ class SettingsViewModel extends SafeChangeNotifier {
       selectedSourceIds: const [],
     );
     await _theme.saveSettings(settings);
-    await _startup.refreshBackend();
+    await _refreshBackend();
     load();
   }
 }

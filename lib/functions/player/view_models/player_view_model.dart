@@ -34,7 +34,12 @@ class PlayerViewModel extends SafeChangeNotifier {
       _playback.next(backend: _ref.read(backendRepositoryProvider));
   Future<bool> previous() =>
       _playback.previous(backend: _ref.read(backendRepositoryProvider));
+  Future<void> jumpToQueueIndex(int index) => _playback.jumpToQueueIndex(
+    index,
+    backend: _ref.read(backendRepositoryProvider),
+  );
   Future<void> cycleMode() => _playback.cycleMode();
+  void replaceCurrentTrack(Track track) => _playback.replaceCurrentTrack(track);
 
   void _sync() {
     _state = PlayerState(snapshot: _playback.snapshot);

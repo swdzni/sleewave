@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/providers.dart';
+import '../../../core/app_startup_controller.dart';
+import '../../../core/models/track.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
 import '../../home/widgets/home_section.dart';
+import '../../player/view_models/player_view_model.dart';
+import '../../playlists/widgets/add_to_playlist_sheet.dart';
 import '../view_models/library_view_model.dart';
 import '../widgets/folder_header.dart';
 
@@ -27,10 +30,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final vm = ref.watch(libraryViewModelProvider);
     final state = vm.state;
+    final currentTrackId = ref
+        .watch(playerViewModelProvider)
+        .state
+        .snapshot
+        .currentTrack
+        ?.id;
+    final sourceNames = {
+      for (final source in ref.watch(appStartupControllerProvider).sources)
+        source.id: source.name,
+    };
     return AppScaffold(
       safeBottom: false,
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 170),
+        padding: const EdgeInsets.only(bottom: 220),
         children: [
           FolderHeader(path: state.folderPath, onImport: vm.importFiles),
           const SizedBox(height: 24),
@@ -43,10 +56,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       for (final track in state.downloaded)
                         SongCard(
                           track: track,
+                          isPlaying: currentTrackId == track.id,
+                          sourceLabel: sourceNames[track.sourceId],
                           onTap: () => vm.play(track),
-                          onLike: () => ref
-                              .read(trackRepositoryProvider)
-                              .toggleLike(track),
+                          onLike: () => _toggleLike(track),
+                          onAddToPlaylist: () => _showAddToPlaylist(track),
                           onDelete: () => vm.deleteTrack(track),
                         ),
                     ],
@@ -61,10 +75,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       for (final track in state.imported)
                         SongCard(
                           track: track,
+                          isPlaying: currentTrackId == track.id,
+                          sourceLabel: sourceNames[track.sourceId],
                           onTap: () => vm.play(track),
-                          onLike: () => ref
-                              .read(trackRepositoryProvider)
-                              .toggleLike(track),
+                          onLike: () => _toggleLike(track),
+                          onAddToPlaylist: () => _showAddToPlaylist(track),
                           onDelete: () => vm.deleteTrack(track),
                         ),
                     ],
@@ -72,6 +87,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _toggleLike(Track track) async {
+    final updated = await ref.read(libraryViewModelProvider).toggleLike(track);
+    ref.read(playerViewModelProvider).replaceCurrentTrack(updated);
+  }
+
+  void _showAddToPlaylist(Track track) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (context) => AddToPlaylistSheet(track: track),
     );
   }
 }

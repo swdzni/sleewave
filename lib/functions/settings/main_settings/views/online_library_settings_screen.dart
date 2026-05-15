@@ -57,7 +57,6 @@ class _OnlineLibrarySettingsScreenState
             checking: state.checking,
             httpWarning: state.httpWarning,
             onCheck: () => vm.checkUrl(_urlController.text),
-            onSave: () => vm.saveOnlineLibrary(_urlController.text),
             onClear: () async {
               _urlController.clear();
               await vm.clear();

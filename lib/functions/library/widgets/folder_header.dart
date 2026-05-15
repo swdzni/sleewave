@@ -18,11 +18,7 @@ class FolderHeader extends StatelessWidget {
         const SizedBox(height: 4),
         Text(path, maxLines: 2, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: onImport,
-          icon: const Icon(Icons.file_upload_rounded),
-          label: const Text('Import'),
-        ),
+        FilledButton(onPressed: onImport, child: const Text('Import')),
       ],
     );
   }

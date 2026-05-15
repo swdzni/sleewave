@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/app_startup_controller.dart';
+import '../../../core/models/track.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
 import '../../player/view_models/player_view_model.dart';
+import '../../playlists/widgets/add_to_playlist_sheet.dart';
+import '../../playlists/widgets/playlist_cover.dart';
 import '../view_models/home_view_model.dart';
 import '../widgets/home_section.dart';
 import '../widgets/host_info_card.dart';
@@ -31,13 +36,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final vm = ref.watch(homeViewModelProvider);
     final state = vm.state;
-    final player = ref.read(playerViewModelProvider);
+    final player = ref.watch(playerViewModelProvider);
+    final currentTrackId = player.state.snapshot.currentTrack?.id;
+    final sourceNames = {
+      for (final source in ref.watch(appStartupControllerProvider).sources)
+        source.id: source.name,
+    };
+    final downloadProgress = ref.watch(downloadServiceProvider).progress;
     return AppScaffold(
       safeBottom: false,
       child: RefreshIndicator(
         onRefresh: vm.refreshBackend,
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 170),
+          padding: const EdgeInsets.only(bottom: 220),
           children: [
             Row(
               children: [
@@ -85,7 +96,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.queue_music_rounded),
+                              PlaylistCover(
+                                size: 34,
+                                colorHex: playlist.coverPath ?? playlist.id,
+                              ),
                               const Spacer(),
                               Text(
                                 playlist.name,
@@ -114,12 +128,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SongCard(
                         track: track,
                         mode: SongCardMode.compact,
+                        isPlaying: currentTrackId == track.id,
+                        sourceLabel: sourceNames[track.sourceId],
                         onTap: () => player.play(track),
-                        onLike: () =>
-                            ref.read(trackRepositoryProvider).toggleLike(track),
-                        onDelete: () => ref
-                            .read(trackRepositoryProvider)
-                            .deleteLocalState(track),
+                        onLike: () => _toggleLike(track),
+                        onDownload: () => _downloadTrack(track),
+                        onDelete: () => _deleteLocalState(track),
+                        downloadProgress: downloadProgress[track.id],
                       ),
                   ],
                 ),
@@ -133,10 +148,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         for (final track in state.savedSongs)
                           SongCard(
                             track: track,
+                            isPlaying: currentTrackId == track.id,
+                            sourceLabel: sourceNames[track.sourceId],
                             onTap: () => player.play(track),
-                            onLike: () => ref
-                                .read(trackRepositoryProvider)
-                                .toggleLike(track),
+                            onLike: () => _toggleLike(track),
+                            onAddToPlaylist: () => _showAddToPlaylist(track),
+                            onDownload: () => _downloadTrack(track),
+                            downloadProgress: downloadProgress[track.id],
                           ),
                       ],
                     ),
@@ -153,13 +171,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         for (final track in state.localPreview)
                           SongCard(
                             track: track,
+                            isPlaying: currentTrackId == track.id,
+                            sourceLabel: sourceNames[track.sourceId],
                             onTap: () => player.play(track),
-                            onLike: () => ref
-                                .read(trackRepositoryProvider)
-                                .toggleLike(track),
-                            onDelete: () => ref
-                                .read(trackRepositoryProvider)
-                                .deleteLocalState(track),
+                            onLike: () => _toggleLike(track),
+                            onAddToPlaylist: () => _showAddToPlaylist(track),
+                            onDownload: () => _downloadTrack(track),
+                            onDelete: () => _deleteLocalState(track),
+                            downloadProgress: downloadProgress[track.id],
                           ),
                       ],
                     ),
@@ -168,5 +187,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _toggleLike(Track track) async {
+    final updated = await ref.read(homeViewModelProvider).toggleLike(track);
+    ref.read(playerViewModelProvider).replaceCurrentTrack(updated);
+    notifyLibraryChangedFromWidget(ref);
+  }
+
+  void _showAddToPlaylist(Track track) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (context) => AddToPlaylistSheet(track: track),
+    );
+  }
+
+  Future<void> _downloadTrack(Track track) async {
+    final backend = ref.read(backendRepositoryProvider);
+    if (backend == null) {
+      _showMessage('Connect Online Library to download.');
+      return;
+    }
+    if (track.resultId == null) {
+      _showMessage('Refresh this track before download.');
+      return;
+    }
+    try {
+      final updated = await ref
+          .read(downloadServiceProvider)
+          .download(
+            track: track,
+            backend: backend,
+            settings: ref.read(themeControllerProvider).settings,
+          );
+      if (updated != null) {
+        ref.read(homeViewModelProvider).replaceTrack(updated);
+      }
+      notifyLibraryChangedFromWidget(ref);
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Download failed. Try again.');
+    }
+  }
+
+  Future<void> _deleteLocalState(Track track) async {
+    await ref.read(trackRepositoryProvider).deleteLocalState(track);
+    notifyLibraryChangedFromWidget(ref);
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

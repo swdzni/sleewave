@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,16 +15,9 @@ class PlaylistRepository {
   final AppDatabase _db;
   final TrackRepository _tracks;
   final _uuid = const Uuid();
+  final _random = Random.secure();
 
   Future<void> ensureFavorites() async {
-    final existing =
-        await (_db.select(_db.playlists)..where(
-              (table) => table.id.equals(AppConstants.favoritePlaylistId),
-            ))
-            .getSingleOrNull();
-    if (existing != null) {
-      return;
-    }
     final now = DateTime.now();
     await _db
         .into(_db.playlists)
@@ -30,10 +25,12 @@ class PlaylistRepository {
           PlaylistsCompanion.insert(
             id: AppConstants.favoritePlaylistId,
             name: AppConstants.favoritePlaylistName,
+            coverPath: const Value('#ff5c8a'),
             specialType: const Value(AppConstants.favoritePlaylistId),
             createdAt: now,
             updatedAt: now,
           ),
+          mode: InsertMode.insertOrIgnore,
         );
   }
 
@@ -59,6 +56,7 @@ class PlaylistRepository {
     final playlist = Playlist(
       id: _uuid.v4(),
       name: name.trim(),
+      coverPath: _randomColorHex(),
       createdAt: now,
       updatedAt: now,
     );
@@ -91,12 +89,12 @@ class PlaylistRepository {
     )..where((table) => table.id.equals(playlist.id))).go();
   }
 
-  Future<void> addTrack(String playlistId, Track track) async {
+  Future<Track> addTrack(String playlistId, Track track) async {
     if (playlistId == AppConstants.favoritePlaylistId) {
       if (!track.isLiked) {
-        await _tracks.toggleLike(track);
+        return _tracks.toggleLike(track);
       }
-      return;
+      return track;
     }
     final existing =
         await (_db.select(_db.playlistTracks)..where(
@@ -106,7 +104,7 @@ class PlaylistRepository {
             ))
             .getSingleOrNull();
     if (existing != null) {
-      return;
+      return track;
     }
     final maxPosition = await trackCount(playlistId);
     await _db
@@ -119,14 +117,15 @@ class PlaylistRepository {
             addedAt: DateTime.now(),
           ),
         );
+    return track;
   }
 
-  Future<void> removeTrack(String playlistId, Track track) async {
+  Future<Track> removeTrack(String playlistId, Track track) async {
     if (playlistId == AppConstants.favoritePlaylistId) {
       if (track.isLiked) {
-        await _tracks.toggleLike(track);
+        return _tracks.toggleLike(track);
       }
-      return;
+      return track;
     }
     await (_db.delete(_db.playlistTracks)..where(
           (table) =>
@@ -134,6 +133,22 @@ class PlaylistRepository {
               table.trackId.equals(track.id),
         ))
         .go();
+    return track;
+  }
+
+  Future<bool> containsTrack(String playlistId, Track track) async {
+    if (playlistId == AppConstants.favoritePlaylistId) {
+      final fresh = await _tracks.byId(track.id);
+      return fresh?.isLiked ?? track.isLiked;
+    }
+    final existing =
+        await (_db.select(_db.playlistTracks)..where(
+              (table) =>
+                  table.playlistId.equals(playlistId) &
+                  table.trackId.equals(track.id),
+            ))
+            .getSingleOrNull();
+    return existing != null;
   }
 
   Future<List<Track>> tracksForPlaylist(String playlistId) async {
@@ -213,5 +228,20 @@ class PlaylistRepository {
       createdAt: Value(playlist.createdAt),
       updatedAt: Value(playlist.updatedAt),
     );
+  }
+
+  String _randomColorHex() {
+    const palette = [
+      0xff5cc8ff,
+      0xffff6b9a,
+      0xffa98bff,
+      0xff65d89b,
+      0xffffbd5c,
+      0xff5ee6d1,
+      0xffff7d65,
+      0xffd7f75b,
+    ];
+    final value = palette[_random.nextInt(palette.length)];
+    return '#${value.toRadixString(16).substring(2)}';
   }
 }

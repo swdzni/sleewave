@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import '../../models/track.dart';
 import '../../utils/safe_change_notifier.dart';
 
 class QueueService extends SafeChangeNotifier {
   List<Track> _queue = const [];
   int _index = 0;
+  final _random = Random();
 
   List<Track> get queue => _queue;
   int get index => _index;
@@ -23,8 +26,22 @@ class QueueService extends SafeChangeNotifier {
     setQueue([track]);
   }
 
-  Track? next() {
+  Track? next({bool wrap = false, bool shuffle = false}) {
+    if (shuffle && _queue.length > 1) {
+      var nextIndex = _random.nextInt(_queue.length);
+      if (nextIndex == _index) {
+        nextIndex = (nextIndex + 1) % _queue.length;
+      }
+      _index = nextIndex;
+      notifyListeners();
+      return current;
+    }
     if (!canGoNext) {
+      if (wrap && _queue.isNotEmpty) {
+        _index = 0;
+        notifyListeners();
+        return current;
+      }
       return null;
     }
     _index += 1;
@@ -57,6 +74,31 @@ class QueueService extends SafeChangeNotifier {
     _queue = List.unmodifiable(next);
     if (index < _index) {
       _index -= 1;
+    }
+    notifyListeners();
+  }
+
+  void reorder(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _queue.length) {
+      return;
+    }
+    var targetIndex = newIndex;
+    if (targetIndex > oldIndex) {
+      targetIndex -= 1;
+    }
+    if (targetIndex < 0 || targetIndex >= _queue.length) {
+      return;
+    }
+    final next = [..._queue];
+    final moved = next.removeAt(oldIndex);
+    next.insert(targetIndex, moved);
+    _queue = List.unmodifiable(next);
+    if (_index == oldIndex) {
+      _index = targetIndex;
+    } else if (oldIndex < _index && targetIndex >= _index) {
+      _index -= 1;
+    } else if (oldIndex > _index && targetIndex <= _index) {
+      _index += 1;
     }
     notifyListeners();
   }

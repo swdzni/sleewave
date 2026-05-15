@@ -18,44 +18,50 @@ class ShellScreen extends ConsumerWidget {
       body: Stack(
         children: [
           Positioned.fill(child: navigationShell),
-          const Positioned(left: 0, right: 0, bottom: 78, child: MiniPlayer()),
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: GlassTabBar(
-              currentIndex: currentIndex,
-              onTap: (index) {
-                navigationShell.goBranch(
-                  index,
-                  initialLocation: index == currentIndex,
-                );
-                if (index == 0) {
-                  ref
-                      .read(appStartupControllerProvider)
-                      .refreshBackend(keepConnectedStatus: true);
-                }
-              },
-              items: const [
-                GlassTabItem(
-                  label: 'Home',
-                  icon: Icons.home_rounded,
-                  semanticLabel: 'Home tab',
-                ),
-                GlassTabItem(
-                  label: 'Search',
-                  icon: Icons.search_rounded,
-                  semanticLabel: 'Search tab',
-                ),
-                GlassTabItem(
-                  label: 'Lists',
-                  icon: Icons.queue_music_rounded,
-                  semanticLabel: 'Playlists tab',
-                ),
-                GlassTabItem(
-                  label: 'Library',
-                  icon: Icons.library_music_rounded,
-                  semanticLabel: 'Library tab',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const MiniPlayer(),
+                const SizedBox(height: 8),
+                GlassTabBar(
+                  currentIndex: currentIndex,
+                  onTap: (index) {
+                    navigationShell.goBranch(
+                      index,
+                      initialLocation: index == currentIndex,
+                    );
+                    if (index == 0) {
+                      ref
+                          .read(appStartupControllerProvider)
+                          .refreshBackend(keepConnectedStatus: true);
+                    }
+                  },
+                  items: const [
+                    GlassTabItem(
+                      label: 'Home',
+                      icon: Icons.home_rounded,
+                      semanticLabel: 'Home tab',
+                    ),
+                    GlassTabItem(
+                      label: 'Search',
+                      icon: Icons.search_rounded,
+                      semanticLabel: 'Search tab',
+                    ),
+                    GlassTabItem(
+                      label: 'Playlists',
+                      icon: Icons.queue_music_rounded,
+                      semanticLabel: 'Playlists tab',
+                    ),
+                    GlassTabItem(
+                      label: 'Library',
+                      icon: Icons.library_music_rounded,
+                      semanticLabel: 'Library tab',
+                    ),
+                  ],
                 ),
               ],
             ),

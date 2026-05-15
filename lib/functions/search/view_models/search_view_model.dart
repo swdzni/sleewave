@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/app_startup_controller.dart';
 import '../../../core/models/track.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/backend_models.dart';
 import '../../../core/providers.dart';
 import '../../../core/repositories/track_repository.dart';
@@ -48,18 +49,33 @@ class SearchViewModel extends SafeChangeNotifier {
 
   void loadSources() {
     final sources = _startup.sources;
-    final selected = _theme.settings.selectedSourceIds.isNotEmpty
-        ? _theme.settings.selectedSourceIds
-        : sources
-              .where((source) => source.canSearch)
-              .map((source) => source.id)
-              .toList();
+    final searchableIds = sources
+        .where((source) => source.canSearch)
+        .map((source) => source.id)
+        .toList();
+    final savedSelected = _theme.settings.selectedSourceIds
+        .where(searchableIds.contains)
+        .toList();
+    final selected = savedSelected.length == searchableIds.length
+        ? const <String>[]
+        : savedSelected;
     _state = _state.copyWith(
       availableSources: sources,
       selectedSourceIds: selected,
       status: _startup.status,
     );
     notifyListeners();
+  }
+
+  Future<void> refreshFromStartup({bool rerunSearch = false}) async {
+    final previousStatus = _state.status;
+    loadSources();
+    if (rerunSearch &&
+        _state.query.trim().isNotEmpty &&
+        !previousStatus.isConnected &&
+        _startup.status.isConnected) {
+      await searchNow();
+    }
   }
 
   void setQuery(String query) {
@@ -76,13 +92,21 @@ class SearchViewModel extends SafeChangeNotifier {
     if (source == null || !source.canSearch) {
       return;
     }
-    final selected = [..._state.selectedSourceIds];
+    final selected = _state.selectedSourceIds.isEmpty
+        ? <String>[]
+        : [..._state.selectedSourceIds];
     if (selected.contains(sourceId)) {
       selected.remove(sourceId);
     } else {
       selected.add(sourceId);
     }
     _state = _state.copyWith(selectedSourceIds: selected);
+    notifyListeners();
+    searchNow();
+  }
+
+  void selectAllSources() {
+    _state = _state.copyWith(selectedSourceIds: const []);
     notifyListeners();
     searchNow();
   }
@@ -111,31 +135,17 @@ class SearchViewModel extends SafeChangeNotifier {
     notifyListeners();
 
     final backend = _ref.read(backendRepositoryProvider);
-    if (!_startup.status.isConnected || backend == null) {
-      _state = _state.copyWith(
-        isSearching: false,
-        error:
-            'Connect Online Library in Settings or use your offline Library.',
-      );
+    if (backend == null) {
+      _state = _state.copyWith(isSearching: false, error: null);
       notifyListeners();
       return;
     }
-    final sourceIds = _state.selectedSourceIds
-        .where(
-          (id) => _state.availableSources.any(
-            (source) => source.id == id && source.canSearch,
-          ),
-        )
-        .toList();
-    if (sourceIds.isEmpty) {
-      _state = _state.copyWith(error: 'Select at least one source.');
-      notifyListeners();
-      return;
-    }
+    final sourceIds = _state.effectiveSourceIds();
     _cancelToken = CancelToken();
     _state = _state.copyWith(isSearching: true);
     notifyListeners();
     try {
+      _loadSavedSongsFirst(query);
       await for (final event in backend.search(
         query: query,
         sourceIds: sourceIds,
@@ -167,7 +177,16 @@ class SearchViewModel extends SafeChangeNotifier {
       if (_cancelToken?.isCancelled == true) {
         return;
       }
-      _state = _state.copyWith(isSearching: false, error: '$error');
+      final message = error is ApiException
+          ? error.message
+          : 'Online Library search failed.';
+      _state = _state.copyWith(
+        isSearching: false,
+        error: _state.localMatches.isEmpty ? message : null,
+        warnings: _state.localMatches.isEmpty
+            ? _state.warnings
+            : {..._state.warnings, 'Online Library unavailable.'}.toList(),
+      );
       notifyListeners();
     }
   }
@@ -185,17 +204,81 @@ class SearchViewModel extends SafeChangeNotifier {
   Future<void> downloadTrack(Track track) async {
     final backend = _ref.read(backendRepositoryProvider);
     if (backend == null) {
+      _state = _state.copyWith(error: 'Connect Online Library to download.');
+      notifyListeners();
       return;
     }
-    await _downloads.download(
-      track: track,
-      backend: backend,
-      settings: _theme.settings,
-    );
+    if (track.resultId == null) {
+      _state = _state.copyWith(error: 'Refresh this track before download.');
+      notifyListeners();
+      return;
+    }
+    try {
+      final updated = await _downloads.download(
+        track: track,
+        backend: backend,
+        settings: _theme.settings,
+      );
+      if (updated != null) {
+        _state = _state.copyWith(
+          localMatches: _replaceTrack(_state.localMatches, updated),
+          streamedResults: _replaceTrack(_state.streamedResults, updated),
+        );
+      }
+      _state = _state.copyWith(error: null);
+      notifyLibraryChanged(_ref);
+      notifyListeners();
+    } on ApiException catch (error) {
+      _state = _state.copyWith(error: error.message);
+      notifyListeners();
+    } catch (_) {
+      _state = _state.copyWith(error: 'Download failed. Try again.');
+      notifyListeners();
+    }
   }
 
-  Future<void> deleteTrack(Track track) => _tracks.deleteLocalState(track);
-  Future<void> toggleLike(Track track) => _tracks.toggleLike(track);
+  Future<void> deleteTrack(Track track) async {
+    await _tracks.deleteLocalState(track);
+    notifyLibraryChanged(_ref);
+  }
+
+  Future<void> toggleLike(Track track) async {
+    final updated = await _tracks.toggleLike(track);
+    _state = _state.copyWith(
+      localMatches: _replaceTrack(_state.localMatches, updated),
+      streamedResults: _replaceTrack(_state.streamedResults, updated),
+    );
+    _ref.read(playbackServiceProvider).replaceCurrentTrack(updated);
+    notifyLibraryChanged(_ref);
+    notifyListeners();
+  }
+
+  void _loadSavedSongsFirst(String query) {
+    for (final song in _startup.savedSongs.where(
+      (track) => _matchesQuery(track, query),
+    )) {
+      _state = _state.copyWith(
+        streamedResults: _searchService.mergeResults(
+          existing: _state.streamedResults,
+          incoming: song,
+        ),
+      );
+      notifyListeners();
+    }
+  }
+
+  bool _matchesQuery(Track track, String query) {
+    final normalized = query.toLowerCase();
+    return track.title.toLowerCase().contains(normalized) ||
+        track.artist.toLowerCase().contains(normalized) ||
+        (track.album?.toLowerCase().contains(normalized) ?? false);
+  }
+
+  List<Track> _replaceTrack(List<Track> tracks, Track updated) {
+    return [
+      for (final track in tracks) track.id == updated.id ? updated : track,
+    ];
+  }
 
   @override
   void dispose() {
@@ -207,7 +290,7 @@ class SearchViewModel extends SafeChangeNotifier {
 
 final searchViewModelProvider =
     ChangeNotifierProvider.autoDispose<SearchViewModel>((ref) {
-      return SearchViewModel(
+      final vm = SearchViewModel(
         tracks: ref.read(trackRepositoryProvider),
         searchService: ref.read(searchServiceProvider),
         startup: ref.read(appStartupControllerProvider),
@@ -215,4 +298,16 @@ final searchViewModelProvider =
         downloads: ref.read(downloadServiceProvider),
         ref: ref,
       );
+      ref.listen<AppStartupController>(appStartupControllerProvider, (
+        previous,
+        next,
+      ) {
+        vm.refreshFromStartup(rerunSearch: next.status.isConnected);
+      });
+      ref.listen<int>(libraryRevisionProvider, (previous, next) {
+        if (vm.state.query.trim().isNotEmpty) {
+          vm.searchNow();
+        }
+      });
+      return vm;
     });
