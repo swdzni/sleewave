@@ -57,8 +57,8 @@ class LibraryViewModel extends SafeChangeNotifier {
     return updated;
   }
 
-  Future<void> play(Track track) =>
-      _ref.read(playerViewModelProvider).play(track);
+  Future<void> play(Track track, {List<Track>? queue}) =>
+      _ref.read(playerViewModelProvider).play(track, queue: queue);
 
   List<Track> _replaceTrack(List<Track> tracks, Track updated) {
     return [

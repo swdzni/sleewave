@@ -19,21 +19,33 @@ class PlayerViewModel extends SafeChangeNotifier {
 
   PlayerState get state => _state;
 
-  Future<void> play(Track track, {List<Track>? queue}) async {
+  Future<void> play(
+    Track track, {
+    List<Track>? queue,
+    String? activePlaylistId,
+  }) async {
     await _playback.playTrack(
       track,
       backend: _ref.read(backendRepositoryProvider),
       queue: queue,
+      activePlaylistId: activePlaylistId,
     );
   }
 
   Future<void> togglePlayPause() => _playback.togglePlayPause();
   Future<void> stop() => _playback.stop();
   Future<void> seek(Duration position) => _playback.seek(position);
+  Future<void> restartOrPrevious() => _playback.restartOrPrevious(
+    backend: _ref.read(backendRepositoryProvider),
+  );
   Future<bool> next() =>
       _playback.next(backend: _ref.read(backendRepositoryProvider));
   Future<bool> previous() =>
       _playback.previous(backend: _ref.read(backendRepositoryProvider));
+  void beginFastForward() => _playback.beginFastForward();
+  void endFastForward() => _playback.endFastForward();
+  void beginRewind() => _playback.beginRewind();
+  void endRewind() => _playback.endRewind();
   Future<void> jumpToQueueIndex(int index) => _playback.jumpToQueueIndex(
     index,
     backend: _ref.read(backendRepositoryProvider),

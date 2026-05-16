@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../functions/home/views/home_screen.dart';
+import '../../functions/home/views/home_collection_screen.dart';
 import '../../functions/library/views/library_screen.dart';
 import '../../functions/player/views/player_screen.dart';
 import '../../functions/playlists/views/playlist_detail_screen.dart';
@@ -29,6 +30,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/home',
                 name: RouteNames.home,
                 builder: (context, state) => const HomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'recent',
+                    name: RouteNames.homeRecent,
+                    builder: (context, state) => const HomeCollectionScreen(
+                      kind: HomeCollectionKind.recent,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'server',
+                    name: RouteNames.homeServer,
+                    builder: (context, state) => const HomeCollectionScreen(
+                      kind: HomeCollectionKind.server,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

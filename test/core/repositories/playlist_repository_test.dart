@@ -72,6 +72,15 @@ void main() {
     },
   );
 
+  test('deletes custom playlists', () async {
+    final playlist = await playlists.create('Temporary');
+
+    await playlists.delete(playlist);
+    final all = await playlists.allPlaylists();
+
+    expect(all.any((item) => item.id == playlist.id), isFalse);
+  });
+
   test('Favorite membership follows liked state', () async {
     final now = DateTime(2026);
     final track = await tracks.upsert(

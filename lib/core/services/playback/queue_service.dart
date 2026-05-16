@@ -66,6 +66,23 @@ class QueueService extends SafeChangeNotifier {
     notifyListeners();
   }
 
+  void shuffleKeepingCurrent() {
+    if (_queue.length < 2) {
+      return;
+    }
+    final currentTrack = current;
+    if (currentTrack == null) {
+      return;
+    }
+    final rest = [
+      for (var index = 0; index < _queue.length; index++)
+        if (index != _index) _queue[index],
+    ]..shuffle(_random);
+    _queue = List.unmodifiable([currentTrack, ...rest]);
+    _index = 0;
+    notifyListeners();
+  }
+
   void removeAt(int index) {
     if (index == _index || index < 0 || index >= _queue.length) {
       return;

@@ -141,6 +141,11 @@ class _QueueSheetBody extends ConsumerWidget {
                             final active = currentTrackId == track.id;
                             return ListTile(
                               key: ValueKey('queue-${track.id}-$index'),
+                              tileColor: active
+                                  ? context.palette.accent.withValues(
+                                      alpha: 0.12,
+                                    )
+                                  : null,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 side: BorderSide(
@@ -159,13 +164,20 @@ class _QueueSheetBody extends ConsumerWidget {
                                 track.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
+                                style: active
+                                    ? TextStyle(color: context.palette.accent)
+                                    : null,
                               ),
                               subtitle: Text(
-                                track.displayArtist,
+                                active
+                                    ? 'Playing now · ${track.displayArtist}'
+                                    : track.displayArtist,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              trailing: const Icon(Icons.drag_handle_rounded),
+                              trailing: active
+                                  ? _PlayingBars(color: context.palette.accent)
+                                  : const Icon(Icons.drag_handle_rounded),
                               onTap: () => ref
                                   .read(playerViewModelProvider)
                                   .jumpToQueueIndex(index),
@@ -177,6 +189,71 @@ class _QueueSheetBody extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlayingBars extends StatefulWidget {
+  const _PlayingBars({required this.color});
+
+  final Color color;
+
+  @override
+  State<_PlayingBars> createState() => _PlayingBarsState();
+}
+
+class _PlayingBarsState extends State<_PlayingBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 820),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final value = _controller.value;
+        return SizedBox(
+          width: 24,
+          height: 22,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _bar(8 + 9 * value),
+              const SizedBox(width: 3),
+              _bar(16 - 7 * value),
+              const SizedBox(width: 3),
+              _bar(10 + 6 * (1 - value)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bar(double height) {
+    return Container(
+      width: 4,
+      height: height,
+      decoration: BoxDecoration(
+        color: widget.color,
+        borderRadius: BorderRadius.circular(999),
       ),
     );
   }

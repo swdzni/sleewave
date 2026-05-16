@@ -73,6 +73,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   onPressed: () => _showRenameSheet(vm, state.name),
                   icon: const Icon(Icons.edit_rounded),
                 ),
+              if (!state.isFavorite)
+                IconButton(
+                  tooltip: 'Delete playlist',
+                  onPressed: () => _confirmDeletePlaylist(vm, state.name),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -105,8 +111,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 onTap: () => vm.playFrom(track),
                 onLike: () => vm.toggleLike(track),
                 onAddToPlaylist: () => _showAddToPlaylist(track),
+                onRemoveFromPlaylist: () => vm.remove(track),
                 onDownload: () => _downloadTrack(track),
-                onDelete: () => vm.remove(track),
                 downloadProgress: downloadProgress[track.id],
               ),
         ],
@@ -139,6 +145,35 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     );
     if (name != null) {
       await vm.rename(name);
+    }
+  }
+
+  Future<void> _confirmDeletePlaylist(
+    PlaylistDetailViewModel vm,
+    String name,
+  ) async {
+    final delete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete playlist?'),
+        content: Text('This removes "$name" from Playlists.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (delete == true && mounted) {
+      await vm.deletePlaylist();
+      if (mounted) {
+        context.pop();
+      }
     }
   }
 

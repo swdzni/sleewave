@@ -34,7 +34,7 @@ class MiniPlayer extends ConsumerWidget {
             if (velocity < -150) {
               vm.next();
             } else if (velocity > 150) {
-              vm.previous();
+              vm.restartOrPrevious();
             }
           },
           child: Container(

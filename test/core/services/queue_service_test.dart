@@ -23,6 +23,25 @@ void main() {
     expect(queue.index, 1);
   });
 
+  test('shuffle changes visible queue while keeping current first', () {
+    final queue = QueueService()
+      ..setQueue([
+        _track('one'),
+        _track('two'),
+        _track('three'),
+      ], startIndex: 1);
+
+    queue.shuffleKeepingCurrent();
+
+    expect(queue.current?.id, 'two');
+    expect(queue.index, 0);
+    expect(queue.queue.map((track) => track.id).toSet(), {
+      'one',
+      'two',
+      'three',
+    });
+  });
+
   test('reorders queue and keeps current track selected', () {
     final queue = QueueService()
       ..setQueue([

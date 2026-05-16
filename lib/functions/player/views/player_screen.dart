@@ -10,14 +10,22 @@ import '../view_models/player_view_model.dart';
 import '../widgets/player_controls.dart';
 import '../widgets/swipe_dismiss_layer.dart';
 
-class PlayerScreen extends ConsumerWidget {
+class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends ConsumerState<PlayerScreen> {
+  Duration? _dragPosition;
+
+  @override
+  Widget build(BuildContext context) {
     final vm = ref.watch(playerViewModelProvider);
     final snapshot = vm.state.snapshot;
     final track = snapshot.currentTrack;
+    final displayedPosition = _dragPosition ?? snapshot.position;
     return SwipeDismissLayer(
       onDismiss: context.pop,
       child: Scaffold(
@@ -117,21 +125,41 @@ class PlayerScreen extends ConsumerWidget {
                         Slider(
                           value: snapshot.duration.inMilliseconds == 0
                               ? 0
-                              : snapshot.position.inMilliseconds
+                              : displayedPosition.inMilliseconds
                                     .clamp(0, snapshot.duration.inMilliseconds)
                                     .toDouble(),
                           max: snapshot.duration.inMilliseconds == 0
                               ? 1
                               : snapshot.duration.inMilliseconds.toDouble(),
-                          onChanged: (value) =>
-                              vm.seek(Duration(milliseconds: value.round())),
+                          onChangeStart: (value) {
+                            setState(
+                              () => _dragPosition = Duration(
+                                milliseconds: value.round(),
+                              ),
+                            );
+                          },
+                          onChanged: (value) {
+                            setState(
+                              () => _dragPosition = Duration(
+                                milliseconds: value.round(),
+                              ),
+                            );
+                          },
+                          onChangeEnd: (value) async {
+                            final next = Duration(milliseconds: value.round());
+                            setState(() => _dragPosition = next);
+                            await vm.seek(next);
+                            if (mounted) {
+                              setState(() => _dragPosition = null);
+                            }
+                          },
                         ),
                         Row(
                           children: [
-                            Text(_format(snapshot.position)),
+                            Text(_format(displayedPosition)),
                             const Spacer(),
                             Text(
-                              '-${_format(snapshot.duration - snapshot.position)}',
+                              '-${_format(snapshot.duration - displayedPosition)}',
                             ),
                           ],
                         ),

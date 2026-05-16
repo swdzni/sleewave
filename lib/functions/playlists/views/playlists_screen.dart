@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/models/playlist.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../player/view_models/player_view_model.dart';
 import '../view_models/playlists_view_model.dart';
 import '../widgets/playlist_card.dart';
 import '../widgets/playlist_editor_sheet.dart';
@@ -27,6 +28,11 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
   Widget build(BuildContext context) {
     final vm = ref.watch(playlistsViewModelProvider);
     final state = vm.state;
+    final activePlaylistId = ref
+        .watch(playerViewModelProvider)
+        .state
+        .snapshot
+        .activePlaylistId;
     return AppScaffold(
       safeBottom: false,
       child: ListView(
@@ -58,6 +64,10 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
                 onRename: playlist.isFavorite
                     ? null
                     : () => _showRenameSheet(context, vm, playlist),
+                onDelete: playlist.isFavorite
+                    ? null
+                    : () => _confirmDelete(context, vm, playlist),
+                active: activePlaylistId == playlist.id,
               ),
         ],
       ),
@@ -99,6 +109,33 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
     );
     if (name != null) {
       await vm.rename(playlist, name);
+    }
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    PlaylistsViewModel vm,
+    Playlist playlist,
+  ) async {
+    final delete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete playlist?'),
+        content: Text('This removes "${playlist.name}" from Playlists.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (delete == true) {
+      await vm.delete(playlist);
     }
   }
 }

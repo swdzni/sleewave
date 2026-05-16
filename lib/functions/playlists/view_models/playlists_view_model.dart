@@ -43,6 +43,15 @@ class PlaylistsViewModel extends SafeChangeNotifier {
     notifyLibraryChanged(_ref);
     await load();
   }
+
+  Future<void> delete(Playlist playlist) async {
+    if (playlist.isFavorite) {
+      return;
+    }
+    await _playlists.delete(playlist);
+    notifyLibraryChanged(_ref);
+    await load();
+  }
 }
 
 final playlistsViewModelProvider =

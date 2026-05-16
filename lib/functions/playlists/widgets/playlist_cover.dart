@@ -3,31 +3,94 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
 class PlaylistCover extends StatelessWidget {
-  const PlaylistCover({super.key, this.size = 58, this.colorHex});
+  const PlaylistCover({
+    super.key,
+    this.size = 58,
+    this.colorHex,
+    this.isFavorite = false,
+  });
 
   final double size;
   final String? colorHex;
+  final bool isFavorite;
 
   @override
   Widget build(BuildContext context) {
-    final color = _colorFromHex(colorHex) ?? _fallbackColor(colorHex);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.95),
-            Color.lerp(color, context.palette.elevated, 0.58)!,
+    final base = isFavorite
+        ? const Color(0xffff4f86)
+        : _colorFromHex(colorHex) ?? _fallbackColor(colorHex);
+    final second = Color.lerp(base, Colors.white, 0.22)!;
+    final third = Color.lerp(base, context.palette.background, 0.36)!;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.22),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [second, base, third],
+                  stops: const [0, 0.52, 1],
+                ),
+              ),
+            ),
+            Positioned(
+              left: -size * 0.15,
+              top: size * 0.12,
+              child: _softOval(
+                width: size * 1.25,
+                height: size * 0.36,
+                color: Colors.white.withValues(alpha: 0.16),
+                angle: -0.20,
+              ),
+            ),
+            Positioned(
+              right: -size * 0.40,
+              bottom: -size * 0.10,
+              child: _softOval(
+                width: size * 1.22,
+                height: size * 0.46,
+                color: Colors.black.withValues(alpha: 0.10),
+                angle: -0.24,
+              ),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+                borderRadius: BorderRadius.circular(size * 0.22),
+              ),
+            ),
+            Icon(
+              isFavorite ? Icons.favorite_rounded : Icons.music_note_rounded,
+              size: size * 0.42,
+              color: context.palette.primaryText.withValues(alpha: 0.90),
+            ),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
       ),
-      child: Icon(
-        Icons.queue_music_rounded,
-        color: context.palette.primaryText,
+    );
+  }
+
+  Widget _softOval({
+    required double width,
+    required double height,
+    required Color color,
+    required double angle,
+  }) {
+    return Transform.rotate(
+      angle: angle,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(999),
+        ),
       ),
     );
   }
@@ -42,14 +105,14 @@ class PlaylistCover extends StatelessWidget {
 
   Color _fallbackColor(String? seed) {
     const colors = [
-      Color(0xff5cc8ff),
-      Color(0xffff6b9a),
-      Color(0xffa98bff),
-      Color(0xff65d89b),
-      Color(0xffffbd5c),
-      Color(0xff5ee6d1),
-      Color(0xffff7d65),
-      Color(0xffd7f75b),
+      Color(0xff6bbcff),
+      Color(0xff8adfbb),
+      Color(0xffff9b87),
+      Color(0xffffca72),
+      Color(0xffb49cff),
+      Color(0xffd9f56f),
+      Color(0xff6ae7df),
+      Color(0xffff83ac),
     ];
     final index = (seed ?? '').hashCode.abs() % colors.length;
     return colors[index];

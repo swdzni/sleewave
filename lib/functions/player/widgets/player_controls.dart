@@ -18,7 +18,9 @@ class PlayerControls extends ConsumerWidget {
       children: [
         GlowButton(
           icon: Icons.skip_previous_rounded,
-          onPressed: vm.previous,
+          onPressed: vm.restartOrPrevious,
+          onLongPressStart: vm.beginRewind,
+          onLongPressEnd: vm.endRewind,
           semanticLabel: 'Previous',
         ),
         const SizedBox(width: 16),
@@ -34,6 +36,8 @@ class PlayerControls extends ConsumerWidget {
         GlowButton(
           icon: Icons.skip_next_rounded,
           onPressed: vm.next,
+          onLongPressStart: vm.beginFastForward,
+          onLongPressEnd: vm.endFastForward,
           semanticLabel: 'Next',
         ),
         const SizedBox(width: 16),

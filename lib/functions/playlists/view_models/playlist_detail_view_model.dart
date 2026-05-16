@@ -52,11 +52,15 @@ class PlaylistDetailViewModel extends SafeChangeNotifier {
     if (shuffle) {
       queue.shuffle();
     }
-    await _ref.read(playerViewModelProvider).play(queue.first, queue: queue);
+    await _ref
+        .read(playerViewModelProvider)
+        .play(queue.first, queue: queue, activePlaylistId: _playlistId);
   }
 
   Future<void> playFrom(Track track) async {
-    await _ref.read(playerViewModelProvider).play(track, queue: _state.tracks);
+    await _ref
+        .read(playerViewModelProvider)
+        .play(track, queue: _state.tracks, activePlaylistId: _playlistId);
   }
 
   Future<void> remove(Track track) async {
@@ -73,6 +77,15 @@ class PlaylistDetailViewModel extends SafeChangeNotifier {
     await _playlists.rename(playlist, name);
     notifyLibraryChanged(_ref);
     await load();
+  }
+
+  Future<void> deletePlaylist() async {
+    final playlist = _playlist;
+    if (playlist == null || playlist.isFavorite) {
+      return;
+    }
+    await _playlists.delete(playlist);
+    notifyLibraryChanged(_ref);
   }
 
   Future<void> toggleLike(Track track) async {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -84,14 +83,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'Device name',
                 subtitle: state.settings.deviceId,
                 onTap: () => context.push('/settings/device'),
-              ),
-              _SettingsRow(
-                icon: Icons.copy_rounded,
-                title: 'Copy device name',
-                subtitle: 'Use this when pairing your library.',
-                onTap: () => Clipboard.setData(
-                  ClipboardData(text: state.settings.deviceId),
-                ),
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
@@ -10,11 +11,14 @@ import '../../network/api_exception.dart';
 import '../../repositories/backend_repository.dart';
 import '../../repositories/track_repository.dart';
 import '../../utils/safe_change_notifier.dart';
-import 'backend_stream_audio_source.dart';
 import 'queue_service.dart';
 
 class PlaybackService extends SafeChangeNotifier {
   PlaybackService(this._tracks, this._queue) {
+    if (Platform.isIOS) {
+      _remoteControlsChannel.setMethodCallHandler(_handleRemoteCommand);
+      _scheduleRemoteControlsRefresh();
+    }
     _subscriptions.add(
       _player.playerStateStream.listen((state) {
         _snapshot = _snapshot.copyWith(
@@ -24,6 +28,7 @@ class PlaybackService extends SafeChangeNotifier {
               state.processingState == ProcessingState.loading,
         );
         notifyListeners();
+        _scheduleRemoteControlsRefresh();
         if (state.processingState == ProcessingState.completed) {
           unawaited(_handleCompleted());
         }
@@ -41,6 +46,34 @@ class PlaybackService extends SafeChangeNotifier {
         notifyListeners();
       }),
     );
+    _subscriptions.add(
+      _player.currentIndexStream.listen((index) {
+        if (index == null || index == _queue.index) {
+          return;
+        }
+        final oldIndex = _queue.index;
+        final oldPosition = _snapshot.position;
+        if (index == oldIndex - 1 && oldPosition > _restartThreshold) {
+          unawaited(_player.seek(Duration.zero, index: oldIndex));
+          _queue.jumpTo(oldIndex);
+          _snapshot = _snapshot.copyWith(position: Duration.zero);
+          notifyListeners();
+          return;
+        }
+        _queue.jumpTo(index);
+        final track = _queue.current;
+        if (track != null) {
+          _snapshot = _snapshot.copyWith(
+            currentTrack: track,
+            queue: _queue.queue,
+            error: null,
+          );
+          notifyListeners();
+          _scheduleRemoteControlsRefresh();
+          unawaited(_tracks.recordPlayed(track));
+        }
+      }),
+    );
   }
 
   final TrackRepository _tracks;
@@ -50,6 +83,15 @@ class PlaybackService extends SafeChangeNotifier {
   PlaybackSnapshot _snapshot = const PlaybackSnapshot();
   BackendRepository? _lastBackend;
   bool _handlingCompletion = false;
+  Timer? _rewindTimer;
+  Timer? _remoteControlsTimer;
+  bool _fastForwarding = false;
+  int _loadGeneration = 0;
+
+  static const _restartThreshold = Duration(seconds: 3);
+  static const _remoteControlsChannel = MethodChannel(
+    'sleewave/remote_controls',
+  );
 
   PlaybackSnapshot get snapshot => _snapshot;
 
@@ -57,6 +99,7 @@ class PlaybackService extends SafeChangeNotifier {
     Track track, {
     BackendRepository? backend,
     List<Track>? queue,
+    String? activePlaylistId,
   }) async {
     _lastBackend = backend;
     if (queue != null && queue.isNotEmpty) {
@@ -67,7 +110,11 @@ class PlaybackService extends SafeChangeNotifier {
     } else {
       _queue.setSingle(track);
     }
-    await _loadAndPlay(track, backend: backend);
+    await _loadAndPlay(
+      track,
+      backend: backend,
+      activePlaylistId: activePlaylistId,
+    );
   }
 
   Future<void> jumpToQueueIndex(int index, {BackendRepository? backend}) async {
@@ -88,6 +135,7 @@ class PlaybackService extends SafeChangeNotifier {
   }
 
   Future<void> stop() async {
+    _loadGeneration++;
     await _player.stop();
     _snapshot = _snapshot.copyWith(isPlaying: false, isBuffering: false);
     notifyListeners();
@@ -95,11 +143,20 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> seek(Duration position) => _player.seek(position);
 
+  Future<void> restartOrPrevious({BackendRepository? backend}) async {
+    if (_snapshot.position > _restartThreshold || !_queue.canGoPrevious) {
+      await _player.seek(Duration.zero);
+      _snapshot = _snapshot.copyWith(position: Duration.zero);
+      notifyListeners();
+      return;
+    }
+    await previous(backend: backend);
+  }
+
   Future<bool> next({BackendRepository? backend}) async {
     _lastBackend = backend ?? _lastBackend;
     final nextTrack = _queue.next(
       wrap: _snapshot.mode == PlaybackMode.repeatAll,
-      shuffle: _snapshot.mode == PlaybackMode.shuffle,
     );
     if (nextTrack == null) {
       return false;
@@ -122,7 +179,10 @@ class PlaybackService extends SafeChangeNotifier {
     final mode = _snapshot.mode.next;
     await _player.setShuffleModeEnabled(false);
     await _player.setLoopMode(LoopMode.off);
-    _snapshot = _snapshot.copyWith(mode: mode);
+    if (mode == PlaybackMode.shuffle) {
+      _queue.shuffleKeepingCurrent();
+    }
+    _snapshot = _snapshot.copyWith(mode: mode, queue: _queue.queue);
     notifyListeners();
   }
 
@@ -137,7 +197,41 @@ class PlaybackService extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _loadAndPlay(Track track, {BackendRepository? backend}) async {
+  Future<void> beginFastForward() async {
+    if (_fastForwarding) {
+      return;
+    }
+    _fastForwarding = true;
+    await _player.setSpeed(2.6);
+  }
+
+  Future<void> endFastForward() async {
+    if (!_fastForwarding) {
+      return;
+    }
+    _fastForwarding = false;
+    await _player.setSpeed(1);
+  }
+
+  void beginRewind() {
+    _rewindTimer?.cancel();
+    _rewindTimer = Timer.periodic(const Duration(milliseconds: 160), (_) {
+      final next = _snapshot.position - const Duration(milliseconds: 1400);
+      unawaited(seek(next.isNegative ? Duration.zero : next));
+    });
+  }
+
+  void endRewind() {
+    _rewindTimer?.cancel();
+    _rewindTimer = null;
+  }
+
+  Future<void> _loadAndPlay(
+    Track track, {
+    BackendRepository? backend,
+    Object? activePlaylistId = _activePlaylistSentinel,
+  }) async {
+    final generation = ++_loadGeneration;
     _snapshot = _snapshot.copyWith(
       currentTrack: track,
       isPlaying: false,
@@ -145,18 +239,33 @@ class PlaybackService extends SafeChangeNotifier {
       position: Duration.zero,
       duration: Duration.zero,
       queue: _queue.queue,
+      activePlaylistId: activePlaylistId == _activePlaylistSentinel
+          ? _snapshot.activePlaylistId
+          : activePlaylistId as String?,
       error: null,
     );
     notifyListeners();
+    _scheduleRemoteControlsRefresh();
     try {
+      await endFastForward();
+      endRewind();
+      await _player.pause();
+      if (_isStaleLoad(generation)) {
+        return;
+      }
       await _player.stop();
-      final mediaItem = _mediaItem(track);
-      final audioSource = await _audioSourceFor(
+      if (_isStaleLoad(generation)) {
+        return;
+      }
+      final preparedQueue = await _prepareQueue(
         track,
         backend: backend,
-        mediaItem: mediaItem,
+        queue: _queue.queue,
       );
-      if (audioSource == null) {
+      if (_isStaleLoad(generation)) {
+        return;
+      }
+      if (preparedQueue == null) {
         _setPlaybackError(
           track,
           backend == null
@@ -165,17 +274,43 @@ class PlaybackService extends SafeChangeNotifier {
         );
         return;
       }
-      await _player.setAudioSource(audioSource);
+      _queue.setQueue(preparedQueue.tracks, startIndex: preparedQueue.index);
+      _snapshot = _snapshot.copyWith(queue: _queue.queue);
+      notifyListeners();
+      await _player.setAudioSources(
+        preparedQueue.sources,
+        initialIndex: preparedQueue.index,
+      );
+      if (_isStaleLoad(generation)) {
+        return;
+      }
       await _player.play();
+      if (_isStaleLoad(generation)) {
+        return;
+      }
       await _tracks.recordPlayed(track);
     } on ApiException catch (error) {
-      _setPlaybackError(track, error.message);
-    } on PlayerException {
-      _setPlaybackError(track, 'Could not start audio playback. Try again.');
+      _setPlaybackError(track, error.message, generation: generation);
     } on PlayerInterruptedException {
-      _setPlaybackError(track, 'Playback was interrupted.');
+      if (!_isStaleLoad(generation)) {
+        _setPlaybackError(
+          track,
+          'Playback was interrupted.',
+          generation: generation,
+        );
+      }
+    } on PlayerException {
+      _setPlaybackError(
+        track,
+        'Could not start audio playback. Try again.',
+        generation: generation,
+      );
     } catch (_) {
-      _setPlaybackError(track, 'Could not play this track. Try again.');
+      _setPlaybackError(
+        track,
+        'Could not play this track. Try again.',
+        generation: generation,
+      );
     }
   }
 
@@ -190,7 +325,7 @@ class PlaybackService extends SafeChangeNotifier {
           await _player.seek(Duration.zero);
           await _player.play();
         case PlaybackMode.shuffle:
-          final nextTrack = _queue.next(shuffle: true);
+          final nextTrack = _queue.next();
           if (nextTrack != null) {
             await _loadAndPlay(nextTrack, backend: _lastBackend);
           }
@@ -213,7 +348,12 @@ class PlaybackService extends SafeChangeNotifier {
     }
   }
 
-  void _setPlaybackError(Track track, String message) {
+  void _setPlaybackError(Track track, String message, {int? generation}) {
+    if (generation != null && _isStaleLoad(generation)) {
+      return;
+    }
+    _loadGeneration++;
+    unawaited(_player.stop());
     _snapshot = _snapshot.copyWith(
       currentTrack: track,
       isPlaying: false,
@@ -222,13 +362,54 @@ class PlaybackService extends SafeChangeNotifier {
       error: message,
     );
     notifyListeners();
+    _scheduleRemoteControlsRefresh();
+  }
+
+  bool _isStaleLoad(int generation) => generation != _loadGeneration;
+
+  Future<_PreparedQueue?> _prepareQueue(
+    Track target, {
+    required BackendRepository? backend,
+    required List<Track> queue,
+  }) async {
+    final tracks = <Track>[];
+    final sources = <AudioSource>[];
+    int? targetIndex;
+    for (final track in queue) {
+      final source = await _audioSourceFor(track, backend: backend);
+      if (source == null) {
+        if (track.id == target.id) {
+          return null;
+        }
+        continue;
+      }
+      if (track.id == target.id && targetIndex == null) {
+        targetIndex = sources.length;
+      }
+      tracks.add(track);
+      sources.add(source);
+    }
+    if (targetIndex == null) {
+      final source = await _audioSourceFor(target, backend: backend);
+      if (source == null) {
+        return null;
+      }
+      targetIndex = sources.length;
+      tracks.add(target);
+      sources.add(source);
+    }
+    return _PreparedQueue(
+      tracks: List.unmodifiable(tracks),
+      sources: sources,
+      index: targetIndex,
+    );
   }
 
   Future<AudioSource?> _audioSourceFor(
     Track track, {
     required BackendRepository? backend,
-    required MediaItem mediaItem,
   }) async {
+    final mediaItem = _mediaItem(track);
     final localPath = track.localPath;
     if (localPath != null &&
         localPath.isNotEmpty &&
@@ -237,11 +418,7 @@ class PlaybackService extends SafeChangeNotifier {
     }
     final resultId = track.resultId;
     if (resultId != null && backend != null) {
-      return BackendStreamAudioSource(
-        backend: backend,
-        resultId: resultId,
-        tag: mediaItem,
-      );
+      return AudioSource.uri(backend.getStreamUrl(resultId), tag: mediaItem);
     }
     return null;
   }
@@ -273,12 +450,77 @@ class PlaybackService extends SafeChangeNotifier {
     return null;
   }
 
+  void _scheduleRemoteControlsRefresh() {
+    if (!Platform.isIOS) {
+      return;
+    }
+    _remoteControlsTimer?.cancel();
+    unawaited(_configureRemoteControls());
+    _remoteControlsTimer = Timer(
+      const Duration(milliseconds: 160),
+      _configureRemoteControls,
+    );
+  }
+
+  Future<void> _configureRemoteControls() async {
+    if (!Platform.isIOS || isDisposed) {
+      return;
+    }
+    try {
+      await _remoteControlsChannel.invokeMethod<void>('configure');
+    } catch (_) {
+      // The native side is iOS-only and may be unavailable in tests.
+    }
+  }
+
+  Future<dynamic> _handleRemoteCommand(MethodCall call) async {
+    switch (call.method) {
+      case 'next':
+        await next(backend: _lastBackend);
+      case 'previous':
+        await restartOrPrevious(backend: _lastBackend);
+      case 'seekForwardBegin':
+        await beginFastForward();
+      case 'seekForwardEnd':
+        await endFastForward();
+      case 'seekBackwardBegin':
+        beginRewind();
+      case 'seekBackwardEnd':
+        endRewind();
+      default:
+        throw PlatformException(
+          code: 'unimplemented',
+          message: 'Unknown remote command ${call.method}',
+        );
+    }
+  }
+
   @override
   void dispose() {
+    _loadGeneration++;
+    if (Platform.isIOS) {
+      _remoteControlsChannel.setMethodCallHandler(null);
+    }
     for (final subscription in _subscriptions) {
       subscription.cancel();
     }
+    _rewindTimer?.cancel();
+    _remoteControlsTimer?.cancel();
     _player.dispose();
     super.dispose();
   }
+}
+
+const _activePlaylistSentinel = Object();
+
+class _PreparedQueue {
+  const _PreparedQueue({
+    required this.tracks,
+    required this.sources,
+    required this.index,
+  });
+
+  final List<Track> tracks;
+  final List<AudioSource> sources;
+  final int index;
 }

@@ -21,6 +21,7 @@ class PlaybackSnapshot {
     this.duration = Duration.zero,
     this.mode = PlaybackMode.normal,
     this.queue = const [],
+    this.activePlaylistId,
     this.error,
   });
 
@@ -31,6 +32,7 @@ class PlaybackSnapshot {
   final Duration duration;
   final PlaybackMode mode;
   final List<Track> queue;
+  final String? activePlaylistId;
   final String? error;
 
   bool get hasTrack => currentTrack != null;
@@ -43,6 +45,7 @@ class PlaybackSnapshot {
     Duration? duration,
     PlaybackMode? mode,
     List<Track>? queue,
+    Object? activePlaylistId = _sentinel,
     Object? error = _sentinel,
   }) {
     return PlaybackSnapshot(
@@ -55,6 +58,9 @@ class PlaybackSnapshot {
       duration: duration ?? this.duration,
       mode: mode ?? this.mode,
       queue: queue ?? this.queue,
+      activePlaylistId: activePlaylistId == _sentinel
+          ? this.activePlaylistId
+          : activePlaylistId as String?,
       error: error == _sentinel ? this.error : error as String?,
     );
   }

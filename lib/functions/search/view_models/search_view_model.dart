@@ -198,7 +198,9 @@ class SearchViewModel extends SafeChangeNotifier {
   }
 
   Future<void> playTrack(Track track) {
-    return _ref.read(playerViewModelProvider).play(track);
+    return _ref
+        .read(playerViewModelProvider)
+        .play(track, queue: _state.allResults);
   }
 
   Future<void> downloadTrack(Track track) async {

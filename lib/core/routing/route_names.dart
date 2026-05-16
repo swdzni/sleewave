@@ -2,6 +2,8 @@ class RouteNames {
   const RouteNames._();
 
   static const home = 'home';
+  static const homeRecent = 'homeRecent';
+  static const homeServer = 'homeServer';
   static const search = 'search';
   static const playlists = 'playlists';
   static const playlistDetail = 'playlistDetail';

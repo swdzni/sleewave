@@ -12,6 +12,8 @@ class GlowButton extends StatefulWidget {
     this.active = false,
     this.loading = false,
     this.semanticLabel,
+    this.onLongPressStart,
+    this.onLongPressEnd,
   });
 
   final IconData icon;
@@ -20,6 +22,8 @@ class GlowButton extends StatefulWidget {
   final bool active;
   final bool loading;
   final String? semanticLabel;
+  final VoidCallback? onLongPressStart;
+  final VoidCallback? onLongPressEnd;
 
   @override
   State<GlowButton> createState() => _GlowButtonState();
@@ -42,6 +46,15 @@ class _GlowButtonState extends State<GlowButton> {
         onTapCancel: () => setState(() => _pressed = false),
         onTapUp: (_) => setState(() => _pressed = false),
         onTap: enabled ? widget.onPressed : null,
+        onLongPressStart: enabled && widget.onLongPressStart != null
+            ? (_) => widget.onLongPressStart?.call()
+            : null,
+        onLongPressEnd: enabled && widget.onLongPressEnd != null
+            ? (_) => widget.onLongPressEnd?.call()
+            : null,
+        onLongPressCancel: enabled && widget.onLongPressEnd != null
+            ? widget.onLongPressEnd
+            : null,
         child: AnimatedScale(
           scale: _pressed ? 0.96 : 1,
           duration: const Duration(milliseconds: 160),

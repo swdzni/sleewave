@@ -37,7 +37,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final vm = ref.watch(homeViewModelProvider);
     final state = vm.state;
     final player = ref.watch(playerViewModelProvider);
-    final currentTrackId = player.state.snapshot.currentTrack?.id;
+    final playbackSnapshot = player.state.snapshot;
+    final currentTrackId = playbackSnapshot.currentTrack?.id;
     final sourceNames = {
       for (final source in ref.watch(appStartupControllerProvider).sources)
         source.id: source.name,
@@ -78,12 +79,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (state.playlists.isNotEmpty)
               HomeSection(
                 title: 'Playlists',
+                trailing: TextButton(
+                  onPressed: () => context.go('/playlists'),
+                  child: const Text('More'),
+                ),
                 child: SizedBox(
                   height: 102,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemBuilder: (context, index) {
-                      final playlist = state.playlists[index];
+                      final playlist = state.playlists.take(4).toList()[index];
+                      final active =
+                          playbackSnapshot.activePlaylistId == playlist.id;
                       return InkWell(
                         onTap: () => context.push('/playlists/${playlist.id}'),
                         child: Container(
@@ -92,6 +99,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: active
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.transparent,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,6 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               PlaylistCover(
                                 size: 34,
                                 colorHex: playlist.coverPath ?? playlist.id,
+                                isFavorite: playlist.isFavorite,
                               ),
                               const Spacer(),
                               Text(
@@ -107,7 +120,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
-                              Text('${playlist.trackCount} tracks'),
+                              Text(
+                                active
+                                    ? 'Playing now'
+                                    : '${playlist.trackCount} tracks',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
                         ),
@@ -115,22 +134,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                     separatorBuilder: (context, index) =>
                         const SizedBox(width: 10),
-                    itemCount: state.playlists.length,
+                    itemCount: state.playlists.take(4).length,
                   ),
                 ),
               ),
             if (state.recentTracks.isNotEmpty)
               HomeSection(
                 title: 'Recently played',
+                trailing: TextButton(
+                  onPressed: () => context.push('/home/recent'),
+                  child: const Text('More'),
+                ),
                 child: Column(
                   children: [
-                    for (final track in state.recentTracks)
+                    for (final track in state.recentTracks.take(3))
                       SongCard(
                         track: track,
                         mode: SongCardMode.compact,
                         isPlaying: currentTrackId == track.id,
                         sourceLabel: sourceNames[track.sourceId],
-                        onTap: () => player.play(track),
+                        onTap: () =>
+                            player.play(track, queue: state.recentTracks),
                         onLike: () => _toggleLike(track),
                         onDownload: () => _downloadTrack(track),
                         onDelete: () => _deleteLocalState(track),
@@ -139,26 +163,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
               ),
-            HomeSection(
-              title: 'Saved on server',
-              child: state.savedSongs.isEmpty
-                  ? const EmptyState(title: 'No server-cached tracks yet.')
-                  : Column(
-                      children: [
-                        for (final track in state.savedSongs)
-                          SongCard(
-                            track: track,
-                            isPlaying: currentTrackId == track.id,
-                            sourceLabel: sourceNames[track.sourceId],
-                            onTap: () => player.play(track),
-                            onLike: () => _toggleLike(track),
-                            onAddToPlaylist: () => _showAddToPlaylist(track),
-                            onDownload: () => _downloadTrack(track),
-                            downloadProgress: downloadProgress[track.id],
-                          ),
-                      ],
-                    ),
-            ),
+            if (state.status.isConnected)
+              HomeSection(
+                title: 'Saved on server',
+                trailing: state.savedSongs.isEmpty
+                    ? null
+                    : TextButton(
+                        onPressed: () => context.push('/home/server'),
+                        child: const Text('More'),
+                      ),
+                child: state.savedSongs.isEmpty
+                    ? const EmptyState(title: 'No server-cached tracks yet.')
+                    : Column(
+                        children: [
+                          for (final track in state.savedSongs.take(3))
+                            SongCard(
+                              track: track,
+                              isPlaying: currentTrackId == track.id,
+                              sourceLabel: sourceNames[track.sourceId],
+                              onTap: () =>
+                                  player.play(track, queue: state.savedSongs),
+                              onLike: () => _toggleLike(track),
+                              onAddToPlaylist: () => _showAddToPlaylist(track),
+                              onDownload: () => _downloadTrack(track),
+                              downloadProgress: downloadProgress[track.id],
+                            ),
+                        ],
+                      ),
+              ),
             HomeSection(
               title: 'Offline library',
               child: state.localPreview.isEmpty
@@ -173,7 +205,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             track: track,
                             isPlaying: currentTrackId == track.id,
                             sourceLabel: sourceNames[track.sourceId],
-                            onTap: () => player.play(track),
+                            onTap: () =>
+                                player.play(track, queue: state.localPreview),
                             onLike: () => _toggleLike(track),
                             onAddToPlaylist: () => _showAddToPlaylist(track),
                             onDownload: () => _downloadTrack(track),

@@ -17,6 +17,7 @@ class SongCard extends StatelessWidget {
     this.onLongPress,
     this.onLike,
     this.onAddToPlaylist,
+    this.onRemoveFromPlaylist,
     this.onDownload,
     this.onDelete,
     this.sourceLabel,
@@ -30,6 +31,7 @@ class SongCard extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onLike;
   final VoidCallback? onAddToPlaylist;
+  final VoidCallback? onRemoveFromPlaylist;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
   final String? sourceLabel;
@@ -147,6 +149,13 @@ class SongCard extends StatelessWidget {
                     tooltip: 'Add to playlist',
                     onPressed: onAddToPlaylist,
                     icon: const Icon(Icons.playlist_add_rounded),
+                  ),
+                if (!compact && onRemoveFromPlaylist != null)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Remove from playlist',
+                    onPressed: onRemoveFromPlaylist,
+                    icon: const Icon(Icons.playlist_remove_rounded),
                   ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
