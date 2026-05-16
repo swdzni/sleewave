@@ -35,7 +35,7 @@ class SearchScreen extends ConsumerWidget {
           Text('Search', style: Theme.of(context).textTheme.headlineLarge),
           const SizedBox(height: 14),
           CupertinoSearchTextField(
-            placeholder: 'Search your Online Library sources.',
+            placeholder: 'Search for artists, tracks...',
             onChanged: vm.setQuery,
             onSubmitted: (_) => vm.searchNow(),
           ),
@@ -78,6 +78,7 @@ class SearchScreen extends ConsumerWidget {
               onLike: vm.toggleLike,
               onDownload: vm.downloadTrack,
               onDelete: vm.deleteTrack,
+              onDeleteFromServer: vm.deleteFromServer,
               currentTrackId: currentTrackId,
               sourceNames: sourceNames,
               downloadProgress: downloadProgress,

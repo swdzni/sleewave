@@ -13,7 +13,7 @@ event: start
 data: {"event":"start","query":"pulse","sources":["source_a"],"emitted":0}
 
 event: track
-data: {"event":"track","source":"source_a","track":{"title":"Blue Pulse","artist":"Test Artist","duration":241,"result_id":"result-1","track_key":"track-1","base_track_key":"base-1","availability":{"in_server_cache":true,"on_device":false,"preferred_origin":"server"}},"emitted":1}
+data: {"event":"track","source":"source_a","track":{"title":"Blue Pulse","artist":"Test Artist","duration":241,"result_id":"result-1","availability":{"in_server_cache":true,"on_device":false,"preferred_origin":"server"}},"emitted":1}
 
 event: warning
 data: {"event":"warning","source":"source_a","warning":{"source":"source_a","message":"Skipped one source."},"emitted":1}

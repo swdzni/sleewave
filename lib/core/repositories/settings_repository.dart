@@ -16,6 +16,7 @@ class SettingsRepository {
   static const _deviceId = 'deviceId';
   static const _selectedSourceIds = 'selectedSourceIds';
   static const _searchLimit = 'searchLimit';
+  static const _recentHistoryLimit = 'recentHistoryLimit';
 
   Future<AppSettings> load() async {
     final rows = await _db.select(_db.settings).get();
@@ -34,6 +35,9 @@ class SettingsRepository {
       searchLimit:
           int.tryParse(values[_searchLimit] ?? '') ??
           AppSettings.defaults().searchLimit,
+      recentHistoryLimit:
+          int.tryParse(values[_recentHistoryLimit] ?? '') ??
+          AppSettings.defaults().recentHistoryLimit,
     );
     if (resolvedDeviceId == null) {
       await save(settings);
@@ -54,6 +58,7 @@ class SettingsRepository {
     await _set(_deviceId, settings.deviceId);
     await _set(_selectedSourceIds, jsonEncode(settings.selectedSourceIds));
     await _set(_searchLimit, '${settings.searchLimit}');
+    await _set(_recentHistoryLimit, '${settings.recentHistoryLimit}');
   }
 
   Future<void> clearBackendUrl() async {

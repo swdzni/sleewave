@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/app_startup_controller.dart';
 import '../../../core/models/track.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/providers.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
+import '../../../core/widgets/track_actions_sheet.dart';
 import '../../home/widgets/home_section.dart';
 import '../../player/view_models/player_view_model.dart';
 import '../../playlists/widgets/add_to_playlist_sheet.dart';
@@ -59,6 +62,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           isPlaying: currentTrackId == track.id,
                           sourceLabel: sourceNames[track.sourceId],
                           onTap: () => vm.play(track, queue: state.downloaded),
+                          onLongPress: () => _showTrackActions(track),
                           onLike: () => _toggleLike(track),
                           onAddToPlaylist: () => _showAddToPlaylist(track),
                           onDelete: () => vm.deleteTrack(track),
@@ -78,6 +82,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           isPlaying: currentTrackId == track.id,
                           sourceLabel: sourceNames[track.sourceId],
                           onTap: () => vm.play(track, queue: state.imported),
+                          onLongPress: () => _showTrackActions(track),
                           onLike: () => _toggleLike(track),
                           onAddToPlaylist: () => _showAddToPlaylist(track),
                           onDelete: () => vm.deleteTrack(track),
@@ -102,5 +107,49 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       useRootNavigator: true,
       builder: (context) => AddToPlaylistSheet(track: track),
     );
+  }
+
+  void _showTrackActions(Track track) {
+    showTrackActionsSheet(
+      context: context,
+      track: track,
+      onLike: () => _toggleLike(track),
+      onAddToPlaylist: () => _showAddToPlaylist(track),
+      onDeleteLocal: () =>
+          ref.read(libraryViewModelProvider).deleteTrack(track),
+      onDeleteFromServer: () => _deleteFromServer(track),
+    );
+  }
+
+  Future<void> _deleteFromServer(Track track) async {
+    final backend = ref.read(backendRepositoryProvider);
+    final resultId = track.resultId;
+    if (backend == null || resultId == null) {
+      _showMessage('Connect Online Library first.');
+      return;
+    }
+    try {
+      await backend.deleteTrack(resultId);
+      await ref.read(trackRepositoryProvider).markServerRemoved(track);
+      await ref
+          .read(appStartupControllerProvider)
+          .refreshBackend(keepConnectedStatus: true);
+      notifyLibraryChangedFromWidget(ref);
+      await ref.read(libraryViewModelProvider).load();
+      _showMessage('Deleted from server.');
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Could not delete from server.');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

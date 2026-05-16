@@ -86,6 +86,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          _SettingsGroup(
+            title: 'Other',
+            children: [
+              _SettingsRow(
+                icon: Icons.history_rounded,
+                title: 'Recently played',
+                subtitle: '${state.settings.recentHistoryLimit} tracks',
+                onTap: () => context.push('/settings/other'),
+              ),
+            ],
+          ),
         ],
       ),
     );

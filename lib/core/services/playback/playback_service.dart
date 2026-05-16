@@ -5,12 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import '../../constants/app_constants.dart';
 import '../../models/playback_models.dart';
 import '../../models/track.dart';
 import '../../network/api_exception.dart';
 import '../../repositories/backend_repository.dart';
 import '../../repositories/track_repository.dart';
 import '../../utils/safe_change_notifier.dart';
+import 'backend_stream_audio_source.dart';
 import 'queue_service.dart';
 
 class PlaybackService extends SafeChangeNotifier {
@@ -71,6 +73,7 @@ class PlaybackService extends SafeChangeNotifier {
           notifyListeners();
           _scheduleRemoteControlsRefresh();
           unawaited(_tracks.recordPlayed(track));
+          unawaited(_trimRecentlyPlayed());
         }
       }),
     );
@@ -82,6 +85,7 @@ class PlaybackService extends SafeChangeNotifier {
   final List<StreamSubscription<Object?>> _subscriptions = [];
   PlaybackSnapshot _snapshot = const PlaybackSnapshot();
   BackendRepository? _lastBackend;
+  int _recentHistoryLimit = AppConstants.defaultRecentHistoryLimit;
   bool _handlingCompletion = false;
   Timer? _rewindTimer;
   Timer? _remoteControlsTimer;
@@ -100,8 +104,10 @@ class PlaybackService extends SafeChangeNotifier {
     BackendRepository? backend,
     List<Track>? queue,
     String? activePlaylistId,
+    required int recentHistoryLimit,
   }) async {
     _lastBackend = backend;
+    _recentHistoryLimit = recentHistoryLimit;
     if (queue != null && queue.isNotEmpty) {
       _queue.setQueue(
         queue,
@@ -289,6 +295,7 @@ class PlaybackService extends SafeChangeNotifier {
         return;
       }
       await _tracks.recordPlayed(track);
+      await _trimRecentlyPlayed();
     } on ApiException catch (error) {
       _setPlaybackError(track, error.message, generation: generation);
     } on PlayerInterruptedException {
@@ -367,6 +374,10 @@ class PlaybackService extends SafeChangeNotifier {
 
   bool _isStaleLoad(int generation) => generation != _loadGeneration;
 
+  Future<void> _trimRecentlyPlayed() {
+    return _tracks.trimRecentlyPlayed(limit: _recentHistoryLimit);
+  }
+
   Future<_PreparedQueue?> _prepareQueue(
     Track target, {
     required BackendRepository? backend,
@@ -418,7 +429,11 @@ class PlaybackService extends SafeChangeNotifier {
     }
     final resultId = track.resultId;
     if (resultId != null && backend != null) {
-      return AudioSource.uri(backend.getStreamUrl(resultId), tag: mediaItem);
+      return BackendStreamAudioSource(
+        backend: backend,
+        resultId: resultId,
+        tag: mediaItem,
+      );
     }
     return null;
   }

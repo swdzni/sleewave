@@ -9,6 +9,7 @@ import '../../../core/providers.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
+import '../../../core/widgets/track_actions_sheet.dart';
 import '../../player/view_models/player_view_model.dart';
 import '../../playlists/widgets/add_to_playlist_sheet.dart';
 
@@ -55,6 +56,10 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
         source.id: source.name,
     };
     final downloadProgress = ref.watch(downloadServiceProvider).progress;
+    final onlineAvailable = ref
+        .watch(appStartupControllerProvider)
+        .status
+        .isConnected;
     return AppScaffold(
       safeBottom: false,
       child: ListView(
@@ -73,6 +78,13 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
               ),
+              if (widget.kind == HomeCollectionKind.recent &&
+                  _tracks.isNotEmpty)
+                IconButton(
+                  tooltip: 'Clear recently played',
+                  onPressed: _confirmClearRecentlyPlayed,
+                  icon: const Icon(Icons.delete_sweep_rounded),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -84,9 +96,11 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
                 track: track,
                 isPlaying: currentTrackId == track.id,
                 sourceLabel: sourceNames[track.sourceId],
+                onlineAvailable: onlineAvailable,
                 onTap: () => ref
                     .read(playerViewModelProvider)
                     .play(track, queue: _tracks),
+                onLongPress: () => _showTrackActions(track),
                 onLike: () => _toggleLike(track),
                 onAddToPlaylist: () => _showAddToPlaylist(track),
                 onDownload: () => _downloadTrack(track),
@@ -102,7 +116,14 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
     setState(() => _loading = true);
     final next = switch (widget.kind) {
       HomeCollectionKind.recent =>
-        await ref.read(trackRepositoryProvider).recentTracks(limit: 100),
+        await ref
+            .read(trackRepositoryProvider)
+            .recentTracks(
+              limit: ref
+                  .read(themeControllerProvider)
+                  .settings
+                  .recentHistoryLimit,
+            ),
       HomeCollectionKind.server => await _serverTracks(),
     };
     if (mounted) {
@@ -122,6 +143,38 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       hydrated.add(await repository.byId(track.id) ?? track);
     }
     return hydrated;
+  }
+
+  Future<void> _confirmClearRecentlyPlayed() async {
+    final clear = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear recently played?'),
+        content: const Text('This removes every track from your play history.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (clear != true || !mounted) {
+      return;
+    }
+    await ref.read(trackRepositoryProvider).clearRecentlyPlayed();
+    notifyLibraryChangedFromWidget(ref);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _tracks = const [];
+    });
+    _showMessage('Recently played cleared.');
   }
 
   Future<void> _toggleLike(Track track) async {
@@ -166,6 +219,40 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
     await _load();
   }
 
+  Future<void> _deleteFromServer(Track track) async {
+    final backend = ref.read(backendRepositoryProvider);
+    final resultId = track.resultId;
+    if (backend == null || resultId == null) {
+      _showMessage('Connect Online Library first.');
+      return;
+    }
+    try {
+      await backend.deleteTrack(resultId);
+      final updated = await ref
+          .read(trackRepositoryProvider)
+          .markServerRemoved(track);
+      if (updated == null) {
+        setState(() {
+          _tracks = [
+            for (final item in _tracks)
+              if (item.id != track.id) item,
+          ];
+        });
+      } else {
+        _replaceTrack(updated);
+      }
+      await ref
+          .read(appStartupControllerProvider)
+          .refreshBackend(keepConnectedStatus: true);
+      notifyLibraryChangedFromWidget(ref);
+      _showMessage('Deleted from server.');
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Could not delete from server.');
+    }
+  }
+
   void _replaceTrack(Track updated) {
     setState(() {
       _tracks = [
@@ -180,6 +267,18 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       isScrollControlled: true,
       useRootNavigator: true,
       builder: (context) => AddToPlaylistSheet(track: track),
+    );
+  }
+
+  void _showTrackActions(Track track) {
+    showTrackActionsSheet(
+      context: context,
+      track: track,
+      onLike: () => _toggleLike(track),
+      onAddToPlaylist: () => _showAddToPlaylist(track),
+      onDownload: () => _downloadTrack(track),
+      onDeleteLocal: () => _deleteLocalState(track),
+      onDeleteFromServer: () => _deleteFromServer(track),
     );
   }
 

@@ -85,6 +85,20 @@ void main() {
     expect(saved.backendBaseUrl, 'http://old.test');
     expect(vm.state.status.isConnected, isFalse);
   });
+
+  test('saves recent history limit', () async {
+    final vm = SettingsViewModel(
+      theme,
+      startup,
+      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+    );
+
+    await vm.setRecentHistoryLimit(35);
+    final saved = await settingsRepository.load();
+
+    expect(saved.recentHistoryLimit, 35);
+    expect(vm.state.settings.recentHistoryLimit, 35);
+  });
 }
 
 class _FakeBackendRepository extends BackendRepository {

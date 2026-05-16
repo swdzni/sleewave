@@ -12,5 +12,6 @@ class RouteNames {
   static const settingsAppearance = 'settingsAppearance';
   static const settingsOnlineLibrary = 'settingsOnlineLibrary';
   static const settingsDevice = 'settingsDevice';
+  static const settingsOther = 'settingsOther';
   static const player = 'player';
 }

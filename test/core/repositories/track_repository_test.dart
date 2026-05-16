@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sleewave/core/constants/app_constants.dart';
@@ -91,5 +92,69 @@ void main() {
 
     expect(first.id, isNot(second.id));
     expect(await tracks.allTracks(), hasLength(2));
+  });
+
+  test('clears recently played without deleting tracks', () async {
+    final now = DateTime(2026);
+    final track = await tracks.upsert(
+      Track(
+        id: 'played-track',
+        title: 'Played Track',
+        artist: 'Same Artist',
+        localOrigin: AppConstants.localOriginRemoteOnly,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await tracks.recordPlayed(track);
+    expect(await tracks.recentTracks(), hasLength(1));
+    expect((await tracks.byId(track.id))!.lastPlayedAt, isNotNull);
+
+    await tracks.clearRecentlyPlayed();
+
+    expect(await tracks.recentTracks(), isEmpty);
+    expect(await tracks.allTracks(), hasLength(1));
+    expect((await tracks.byId(track.id))!.lastPlayedAt, isNull);
+  });
+
+  test('trims recently played to the configured limit', () async {
+    final now = DateTime(2026);
+    final inserted = <Track>[];
+    for (var index = 0; index < 4; index++) {
+      inserted.add(
+        await tracks.upsert(
+          Track(
+            id: 'played-$index',
+            title: 'Played $index',
+            artist: 'Same Artist',
+            localOrigin: AppConstants.localOriginRemoteOnly,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ),
+      );
+    }
+    for (final track in inserted) {
+      await tracks.recordPlayed(track);
+    }
+    for (var index = 0; index < inserted.length; index++) {
+      await (db.update(
+        db.recentTracks,
+      )..where((table) => table.trackId.equals('played-$index'))).write(
+        RecentTracksCompanion(
+          playedAt: Value(DateTime(2026, 1, 1, 0, 0, index)),
+        ),
+      );
+    }
+
+    await tracks.trimRecentlyPlayed(limit: 2);
+
+    final recent = await tracks.recentTracks();
+    expect(recent, hasLength(2));
+    expect(recent.map((track) => track.id).toSet(), {'played-3', 'played-2'});
+    expect((await tracks.byId('played-0'))!.lastPlayedAt, isNull);
+    expect((await tracks.byId('played-1'))!.lastPlayedAt, isNull);
+    expect((await tracks.byId('played-2'))!.lastPlayedAt, isNotNull);
   });
 }

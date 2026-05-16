@@ -5,15 +5,17 @@ import '../../../core/models/track.dart';
 import '../../../core/providers.dart';
 import '../../../core/repositories/playlist_repository.dart';
 import '../../../core/repositories/track_repository.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../../core/utils/safe_change_notifier.dart';
 import '../models/home_state.dart';
 
 class HomeViewModel extends SafeChangeNotifier {
-  HomeViewModel(this._tracks, this._playlists, this._startup);
+  HomeViewModel(this._tracks, this._playlists, this._startup, this._theme);
 
   final TrackRepository _tracks;
   final PlaylistRepository _playlists;
   final AppStartupController _startup;
+  final ThemeController _theme;
   HomeState _state = const HomeState();
 
   HomeState get state => _state;
@@ -25,7 +27,9 @@ class HomeViewModel extends SafeChangeNotifier {
       await _startup.refreshBackend(keepConnectedStatus: true);
     }
     final playlists = await _playlists.allPlaylists();
-    final recent = await _tracks.recentTracks(limit: 8);
+    final recent = await _tracks.recentTracks(
+      limit: _theme.settings.recentHistoryLimit,
+    );
     final local = await _tracks.localTracks();
     final savedSongs = await _hydrateTracks(_startup.savedSongs);
     _state = HomeState(
@@ -52,6 +56,12 @@ class HomeViewModel extends SafeChangeNotifier {
     return updated;
   }
 
+  Future<void> clearRecentlyPlayed() async {
+    await _tracks.clearRecentlyPlayed();
+    _state = _state.copyWith(recentTracks: const []);
+    notifyListeners();
+  }
+
   void replaceTrack(Track updated) {
     _state = HomeState(
       loading: _state.loading,
@@ -64,9 +74,28 @@ class HomeViewModel extends SafeChangeNotifier {
     notifyListeners();
   }
 
+  void removeTrack(Track removed) {
+    _state = HomeState(
+      loading: _state.loading,
+      status: _state.status,
+      playlists: _state.playlists,
+      recentTracks: _removeTrack(_state.recentTracks, removed),
+      savedSongs: _removeTrack(_state.savedSongs, removed),
+      localPreview: _removeTrack(_state.localPreview, removed),
+    );
+    notifyListeners();
+  }
+
   List<Track> _replaceTrack(List<Track> tracks, Track updated) {
     return [
       for (final track in tracks) track.id == updated.id ? updated : track,
+    ];
+  }
+
+  List<Track> _removeTrack(List<Track> tracks, Track removed) {
+    return [
+      for (final track in tracks)
+        if (track.id != removed.id) track,
     ];
   }
 
@@ -85,6 +114,7 @@ final homeViewModelProvider = ChangeNotifierProvider.autoDispose<HomeViewModel>(
       ref.watch(trackRepositoryProvider),
       ref.watch(playlistRepositoryProvider),
       ref.read(appStartupControllerProvider),
+      ref.watch(themeControllerProvider),
     );
     ref.listen<AppStartupController>(appStartupControllerProvider, (
       previous,

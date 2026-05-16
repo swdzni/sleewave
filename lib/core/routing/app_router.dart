@@ -12,6 +12,7 @@ import '../../functions/search/views/search_screen.dart';
 import '../../functions/settings/main_settings/views/appearance_settings_screen.dart';
 import '../../functions/settings/main_settings/views/device_settings_screen.dart';
 import '../../functions/settings/main_settings/views/online_library_settings_screen.dart';
+import '../../functions/settings/main_settings/views/other_settings_screen.dart';
 import '../../functions/settings/main_settings/views/settings_screen.dart';
 import '../../functions/shell/views/shell_screen.dart';
 import 'route_names.dart';
@@ -110,6 +111,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: RouteNames.settingsDevice,
             pageBuilder: (context, state) =>
                 _bottomUpPage(state, const DeviceSettingsScreen()),
+          ),
+          GoRoute(
+            path: 'other',
+            name: RouteNames.settingsOther,
+            pageBuilder: (context, state) =>
+                _bottomUpPage(state, const OtherSettingsScreen()),
           ),
         ],
       ),

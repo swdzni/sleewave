@@ -29,6 +29,10 @@ class PlayerViewModel extends SafeChangeNotifier {
       backend: _ref.read(backendRepositoryProvider),
       queue: queue,
       activePlaylistId: activePlaylistId,
+      recentHistoryLimit: _ref
+          .read(themeControllerProvider)
+          .settings
+          .recentHistoryLimit,
     );
   }
 

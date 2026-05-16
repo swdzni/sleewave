@@ -59,16 +59,12 @@ class DownloadService extends SafeChangeNotifier {
       try {
         await backend.confirmDownload(
           deviceId: settings.deviceId,
-          trackKey: track.trackKey,
-          baseTrackKey: track.baseTrackKey,
-          resultId: track.resultId,
+          resultId: track.resultId!,
         );
       } catch (_) {
         await _sync.queueConfirm(
           deviceId: settings.deviceId,
-          trackKey: track.trackKey,
-          baseTrackKey: track.baseTrackKey,
-          resultId: track.resultId,
+          resultId: track.resultId!,
         );
       }
       return updated;

@@ -6,6 +6,9 @@ class AppConstants {
   static const favoritePlaylistName = 'Favorite';
   static const unknownArtist = 'Unknown Artist';
   static const defaultSearchLimit = 25;
+  static const defaultRecentHistoryLimit = 100;
+  static const minRecentHistoryLimit = 5;
+  static const maxRecentHistoryLimit = 200;
 
   static const rootFolderName = 'Sleewave';
   static const downloadsFolderName = 'Downloads';

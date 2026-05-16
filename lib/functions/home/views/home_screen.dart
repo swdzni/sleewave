@@ -9,6 +9,7 @@ import '../../../core/providers.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
+import '../../../core/widgets/track_actions_sheet.dart';
 import '../../player/view_models/player_view_model.dart';
 import '../../playlists/widgets/add_to_playlist_sheet.dart';
 import '../../playlists/widgets/playlist_cover.dart';
@@ -155,6 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         sourceLabel: sourceNames[track.sourceId],
                         onTap: () =>
                             player.play(track, queue: state.recentTracks),
+                        onLongPress: () => _showTrackActions(track),
                         onLike: () => _toggleLike(track),
                         onDownload: () => _downloadTrack(track),
                         onDelete: () => _deleteLocalState(track),
@@ -183,6 +185,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               sourceLabel: sourceNames[track.sourceId],
                               onTap: () =>
                                   player.play(track, queue: state.savedSongs),
+                              onLongPress: () => _showTrackActions(track),
                               onLike: () => _toggleLike(track),
                               onAddToPlaylist: () => _showAddToPlaylist(track),
                               onDownload: () => _downloadTrack(track),
@@ -207,6 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             sourceLabel: sourceNames[track.sourceId],
                             onTap: () =>
                                 player.play(track, queue: state.localPreview),
+                            onLongPress: () => _showTrackActions(track),
                             onLike: () => _toggleLike(track),
                             onAddToPlaylist: () => _showAddToPlaylist(track),
                             onDownload: () => _downloadTrack(track),
@@ -234,6 +238,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       isScrollControlled: true,
       useRootNavigator: true,
       builder: (context) => AddToPlaylistSheet(track: track),
+    );
+  }
+
+  void _showTrackActions(Track track) {
+    showTrackActionsSheet(
+      context: context,
+      track: track,
+      onLike: () => _toggleLike(track),
+      onAddToPlaylist: () => _showAddToPlaylist(track),
+      onDownload: () => _downloadTrack(track),
+      onDeleteLocal: () => _deleteLocalState(track),
+      onDeleteFromServer: () => _deleteFromServer(track),
     );
   }
 
@@ -269,6 +285,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _deleteLocalState(Track track) async {
     await ref.read(trackRepositoryProvider).deleteLocalState(track);
     notifyLibraryChangedFromWidget(ref);
+  }
+
+  Future<void> _deleteFromServer(Track track) async {
+    final backend = ref.read(backendRepositoryProvider);
+    final resultId = track.resultId;
+    if (backend == null || resultId == null) {
+      _showMessage('Connect Online Library first.');
+      return;
+    }
+    try {
+      await backend.deleteTrack(resultId);
+      final updated = await ref
+          .read(trackRepositoryProvider)
+          .markServerRemoved(track);
+      if (updated == null) {
+        ref.read(homeViewModelProvider).removeTrack(track);
+      } else {
+        ref.read(homeViewModelProvider).replaceTrack(updated);
+      }
+      await ref
+          .read(appStartupControllerProvider)
+          .refreshBackend(keepConnectedStatus: true);
+      notifyLibraryChangedFromWidget(ref);
+      _showMessage('Deleted from server.');
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Could not delete from server.');
+    }
   }
 
   void _showMessage(String message) {

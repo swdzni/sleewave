@@ -244,6 +244,40 @@ class SearchViewModel extends SafeChangeNotifier {
     notifyLibraryChanged(_ref);
   }
 
+  Future<void> deleteFromServer(Track track) async {
+    final backend = _ref.read(backendRepositoryProvider);
+    final resultId = track.resultId;
+    if (backend == null || resultId == null) {
+      _state = _state.copyWith(error: 'Connect Online Library first.');
+      notifyListeners();
+      return;
+    }
+    try {
+      await backend.deleteTrack(resultId);
+      final updated = await _tracks.markServerRemoved(track);
+      _state = updated == null
+          ? _state.copyWith(
+              localMatches: _removeTrack(_state.localMatches, track),
+              streamedResults: _removeTrack(_state.streamedResults, track),
+              error: null,
+            )
+          : _state.copyWith(
+              localMatches: _replaceTrack(_state.localMatches, updated),
+              streamedResults: _replaceTrack(_state.streamedResults, updated),
+              error: null,
+            );
+      await _startup.refreshBackend(keepConnectedStatus: true);
+      notifyLibraryChanged(_ref);
+      notifyListeners();
+    } on ApiException catch (error) {
+      _state = _state.copyWith(error: error.message);
+      notifyListeners();
+    } catch (_) {
+      _state = _state.copyWith(error: 'Could not delete from server.');
+      notifyListeners();
+    }
+  }
+
   Future<void> toggleLike(Track track) async {
     final updated = await _tracks.toggleLike(track);
     _state = _state.copyWith(
@@ -279,6 +313,13 @@ class SearchViewModel extends SafeChangeNotifier {
   List<Track> _replaceTrack(List<Track> tracks, Track updated) {
     return [
       for (final track in tracks) track.id == updated.id ? updated : track,
+    ];
+  }
+
+  List<Track> _removeTrack(List<Track> tracks, Track removed) {
+    return [
+      for (final track in tracks)
+        if (track.id != removed.id) track,
     ];
   }
 

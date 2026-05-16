@@ -28,14 +28,18 @@ enum GlowMode {
 }
 
 class AppSettings {
-  const AppSettings({
+  AppSettings({
     this.themeMode = SleewaveThemeMode.dark,
     this.glowMode = GlowMode.static,
     this.backendBaseUrl,
     required this.deviceId,
     this.selectedSourceIds = const [],
     this.searchLimit = AppConstants.defaultSearchLimit,
-  });
+    int recentHistoryLimit = AppConstants.defaultRecentHistoryLimit,
+  }) : recentHistoryLimit = recentHistoryLimit.clamp(
+         AppConstants.minRecentHistoryLimit,
+         AppConstants.maxRecentHistoryLimit,
+       );
 
   factory AppSettings.defaults({String? deviceId}) {
     return AppSettings(deviceId: deviceId ?? generateDeviceId());
@@ -47,6 +51,7 @@ class AppSettings {
   final String deviceId;
   final List<String> selectedSourceIds;
   final int searchLimit;
+  final int recentHistoryLimit;
 
   static String generateDeviceId({Random? random}) {
     final source = random ?? Random.secure();
@@ -107,6 +112,7 @@ class AppSettings {
     String? deviceId,
     List<String>? selectedSourceIds,
     int? searchLimit,
+    int? recentHistoryLimit,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -117,6 +123,7 @@ class AppSettings {
       deviceId: deviceId ?? this.deviceId,
       selectedSourceIds: selectedSourceIds ?? this.selectedSourceIds,
       searchLimit: searchLimit ?? this.searchLimit,
+      recentHistoryLimit: recentHistoryLimit ?? this.recentHistoryLimit,
     );
   }
 }

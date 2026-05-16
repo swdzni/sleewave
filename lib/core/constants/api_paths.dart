@@ -5,9 +5,12 @@ class ApiPaths {
   static const sources = '/sources';
   static const search = '/search';
   static const savedSongs = '/saved-songs';
+  static const cache = '/cache';
+  static const serverTemp = '/server-temp';
   static const deviceLibrarySync = '/device-library/sync';
   static const confirmDownload = '/device-library/confirm-download';
 
   static String stream(String resultId) => '/stream/$resultId';
   static String download(String resultId) => '/download/$resultId';
+  static String track(String resultId) => '/tracks/$resultId';
 }

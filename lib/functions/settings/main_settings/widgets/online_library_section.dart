@@ -12,9 +12,13 @@ class OnlineLibrarySection extends StatelessWidget {
     required this.sources,
     required this.urlController,
     required this.checking,
+    required this.clearingCache,
+    required this.clearingSongs,
     required this.httpWarning,
     required this.onCheck,
     required this.onClear,
+    required this.onClearCache,
+    required this.onClearSongs,
     required this.onOpenGuide,
   });
 
@@ -22,9 +26,13 @@ class OnlineLibrarySection extends StatelessWidget {
   final List<SourceInfo> sources;
   final TextEditingController urlController;
   final bool checking;
+  final bool clearingCache;
+  final bool clearingSongs;
   final bool httpWarning;
   final VoidCallback onCheck;
   final VoidCallback onClear;
+  final VoidCallback onClearCache;
+  final VoidCallback onClearSongs;
   final VoidCallback onOpenGuide;
 
   @override
@@ -109,6 +117,43 @@ class OnlineLibrarySection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
+        if (status.isConnected) ...[
+          Text(
+            'Server cleanup',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: clearingCache ? null : onClearCache,
+                icon: clearingCache
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cleaning_services_rounded),
+                label: const Text('Clear cache'),
+              ),
+              OutlinedButton.icon(
+                onPressed: clearingSongs ? null : onClearSongs,
+                icon: clearingSongs
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_sweep_rounded),
+                label: const Text('Clear all songs'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.palette.danger,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         for (final source in sources)
           ListTile(
             contentPadding: EdgeInsets.zero,

@@ -1,5 +1,3 @@
-import 'package:uuid/uuid.dart';
-
 import '../models/track.dart';
 
 sealed class SearchEvent {
@@ -28,11 +26,12 @@ class SearchTrackFound extends SearchEvent {
   factory SearchTrackFound.fromJson(Map<String, dynamic> json) {
     final trackJson = Map<String, dynamic>.from(json['track'] as Map);
     final source = json['source'] as String?;
+    final resultId = trackJson['result_id'] as String?;
     return SearchTrackFound(
       sourceId: source,
       track: Track.remoteFromJson(
         trackJson,
-        id: const Uuid().v4(),
+        id: resultId ?? '',
         sourceId: source,
       ),
       emitted: (json['emitted'] as num?)?.round() ?? 0,
@@ -67,4 +66,24 @@ class DownloadResponse {
 
   final List<int> bytes;
   final String? filename;
+}
+
+class CacheCleanupResult {
+  const CacheCleanupResult({
+    required this.deletedCount,
+    required this.trackCatalogCleared,
+    required this.deviceLibraryCleared,
+  });
+
+  factory CacheCleanupResult.fromJson(Map<String, dynamic> json) {
+    return CacheCleanupResult(
+      deletedCount: (json['deleted_count'] as num?)?.round() ?? 0,
+      trackCatalogCleared: json['track_catalog_cleared'] == true,
+      deviceLibraryCleared: json['device_library_cleared'] == true,
+    );
+  }
+
+  final int deletedCount;
+  final bool trackCatalogCleared;
+  final bool deviceLibraryCleared;
 }

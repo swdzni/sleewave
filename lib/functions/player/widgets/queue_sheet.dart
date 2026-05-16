@@ -75,12 +75,8 @@ class _QueueSheetBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final queueService = ref.watch(queueServiceProvider);
     final queue = queueService.queue;
-    final currentTrackId = ref
-        .watch(playerViewModelProvider)
-        .state
-        .snapshot
-        .currentTrack
-        ?.id;
+    final playbackSnapshot = ref.watch(playerViewModelProvider).state.snapshot;
+    final currentTrackId = playbackSnapshot.currentTrack?.id;
     return Dismissible(
       key: const ValueKey('queue-sheet'),
       direction: DismissDirection.down,
@@ -170,13 +166,16 @@ class _QueueSheetBody extends ConsumerWidget {
                               ),
                               subtitle: Text(
                                 active
-                                    ? 'Playing now · ${track.displayArtist}'
+                                    ? '${playbackSnapshot.isPlaying ? 'Playing now' : 'Paused'} · ${track.displayArtist}'
                                     : track.displayArtist,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               trailing: active
-                                  ? _PlayingBars(color: context.palette.accent)
+                                  ? _PlayingBars(
+                                      color: context.palette.accent,
+                                      playing: playbackSnapshot.isPlaying,
+                                    )
                                   : const Icon(Icons.drag_handle_rounded),
                               onTap: () => ref
                                   .read(playerViewModelProvider)
@@ -195,9 +194,10 @@ class _QueueSheetBody extends ConsumerWidget {
 }
 
 class _PlayingBars extends StatefulWidget {
-  const _PlayingBars({required this.color});
+  const _PlayingBars({required this.color, required this.playing});
 
   final Color color;
+  final bool playing;
 
   @override
   State<_PlayingBars> createState() => _PlayingBarsState();
@@ -213,7 +213,24 @@ class _PlayingBarsState extends State<_PlayingBars>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 820),
-    )..repeat(reverse: true);
+      value: 0.5,
+    );
+    if (widget.playing) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlayingBars oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.playing == oldWidget.playing) {
+      return;
+    }
+    if (widget.playing) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller.stop();
+    }
   }
 
   @override
@@ -227,7 +244,7 @@ class _PlayingBarsState extends State<_PlayingBars>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final value = _controller.value;
+        final value = widget.playing ? _controller.value : 0.5;
         return SizedBox(
           width: 24,
           height: 22,

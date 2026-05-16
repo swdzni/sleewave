@@ -21,6 +21,9 @@ class SearchService {
   }
 
   bool _sameTrack(Track a, Track b) {
+    if (a.resultId != null && a.resultId == b.resultId) {
+      return true;
+    }
     if (a.trackKey != null && a.trackKey == b.trackKey) {
       return true;
     }

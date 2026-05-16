@@ -8,6 +8,8 @@ class SettingsState {
     this.status = const ServerStatus.unknown(),
     this.sources = const [],
     this.checking = false,
+    this.clearingCache = false,
+    this.clearingSongs = false,
     this.message,
     this.httpWarning = false,
     this.checkedUrl,
@@ -17,6 +19,8 @@ class SettingsState {
   final ServerStatus status;
   final List<SourceInfo> sources;
   final bool checking;
+  final bool clearingCache;
+  final bool clearingSongs;
   final String? message;
   final bool httpWarning;
   final String? checkedUrl;
@@ -26,6 +30,8 @@ class SettingsState {
     ServerStatus? status,
     List<SourceInfo>? sources,
     bool? checking,
+    bool? clearingCache,
+    bool? clearingSongs,
     Object? message = _sentinel,
     bool? httpWarning,
     Object? checkedUrl = _sentinel,
@@ -35,6 +41,8 @@ class SettingsState {
       status: status ?? this.status,
       sources: sources ?? this.sources,
       checking: checking ?? this.checking,
+      clearingCache: clearingCache ?? this.clearingCache,
+      clearingSongs: clearingSongs ?? this.clearingSongs,
       message: message == _sentinel ? this.message : message as String?,
       httpWarning: httpWarning ?? this.httpWarning,
       checkedUrl: checkedUrl == _sentinel

@@ -129,6 +129,16 @@ class SettingsViewModel extends SafeChangeNotifier {
     await _refreshBackend(keepConnectedStatus: _startup.status.isConnected);
   }
 
+  Future<void> setRecentHistoryLimit(int limit) async {
+    final settings = _theme.settings.copyWith(recentHistoryLimit: limit);
+    await _theme.saveSettings(settings);
+    await _startup.tracks.trimRecentlyPlayed(
+      limit: settings.recentHistoryLimit,
+    );
+    _state = _state.copyWith(settings: settings, message: 'Saved');
+    notifyListeners();
+  }
+
   Future<void> clear() async {
     final settings = _theme.settings.copyWith(
       backendBaseUrl: null,
@@ -137,6 +147,66 @@ class SettingsViewModel extends SafeChangeNotifier {
     await _theme.saveSettings(settings);
     await _refreshBackend();
     load();
+  }
+
+  Future<void> clearServerCache() async {
+    final backend = _connectedBackend();
+    if (backend == null) {
+      return;
+    }
+    _state = _state.copyWith(clearingCache: true, message: null);
+    notifyListeners();
+    try {
+      final result = await backend.clearCache();
+      _state = _state.copyWith(
+        clearingCache: false,
+        message: 'Cleared ${result.deletedCount} cached files.',
+      );
+      notifyListeners();
+      await _refreshBackend(keepConnectedStatus: true);
+    } catch (error) {
+      _state = _state.copyWith(
+        clearingCache: false,
+        message: '$error',
+        status: ServerStatus.problem('$error'),
+      );
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearServerSongs() async {
+    final backend = _connectedBackend();
+    if (backend == null) {
+      return;
+    }
+    _state = _state.copyWith(clearingSongs: true, message: null);
+    notifyListeners();
+    try {
+      final result = await backend.clearServerTemp();
+      _state = _state.copyWith(
+        clearingSongs: false,
+        message: 'Cleared ${result.deletedCount} server songs.',
+      );
+      notifyListeners();
+      await _refreshBackend(keepConnectedStatus: true);
+    } catch (error) {
+      _state = _state.copyWith(
+        clearingSongs: false,
+        message: '$error',
+        status: ServerStatus.problem('$error'),
+      );
+      notifyListeners();
+    }
+  }
+
+  BackendRepository? _connectedBackend() {
+    final baseUrl = _theme.settings.backendBaseUrl;
+    if (baseUrl == null || baseUrl.isEmpty) {
+      _state = _state.copyWith(message: 'Connect Online Library first.');
+      notifyListeners();
+      return null;
+    }
+    return _backendFactory(baseUrl);
   }
 }
 

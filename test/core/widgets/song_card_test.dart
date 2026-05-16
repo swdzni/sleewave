@@ -70,6 +70,26 @@ void main() {
 
     expect(find.byIcon(Icons.playlist_add_rounded), findsNothing);
   });
+
+  testWidgets(
+    'disables remote-only tracks when Online Library is unavailable',
+    (tester) async {
+      var tapped = false;
+      await tester.pumpWidget(
+        _wrap(
+          SongCard(
+            track: _track(resultId: 'result-1'),
+            onlineAvailable: false,
+            onTap: () => tapped = true,
+          ),
+        ),
+      );
+
+      expect(find.text('Unavailable offline'), findsOneWidget);
+      await tester.tap(find.byType(SongCard));
+      expect(tapped, isFalse);
+    },
+  );
 }
 
 Widget _wrap(Widget child) {

@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:uuid/uuid.dart';
 
 import '../constants/api_paths.dart';
 import '../models/source_info.dart';
@@ -13,7 +12,6 @@ class BackendRepository {
 
   final ApiClient _apiClient;
   final SseClient _sseClient;
-  final _uuid = const Uuid();
 
   Future<bool> checkHealth() async {
     final json = await _apiClient.getJson(ApiPaths.health);
@@ -49,31 +47,17 @@ class BackendRepository {
 
   Future<List<Track>> getSavedSongs() async {
     final json = await _apiClient.getJson(ApiPaths.savedSongs);
-    return (json['songs'] as List? ?? const [])
-        .map(
-          (item) => Track.remoteFromJson(
-            Map<String, dynamic>.from(item as Map),
-            id: _uuid.v4(),
-          ),
-        )
-        .toList();
-  }
-
-  Uri getStreamUrl(String resultId) {
-    return _apiClient.buildUri(ApiPaths.stream(resultId));
-  }
-
-  Future<void> prepareStream(String resultId) async {
-    final response = await _apiClient.postStream(ApiPaths.stream(resultId));
-    await response.data?.stream.listen(null).cancel();
+    return (json['songs'] as List? ?? const []).map((item) {
+      final songJson = Map<String, dynamic>.from(item as Map);
+      return Track.remoteFromJson(
+        songJson,
+        id: songJson['result_id'] as String? ?? '',
+      );
+    }).toList();
   }
 
   Future<Response<ResponseBody>> openStream(String resultId) {
-    return _apiClient.postStream(ApiPaths.stream(resultId));
-  }
-
-  Future<void> streamTrackPost(String resultId) async {
-    await _apiClient.postBytes(ApiPaths.stream(resultId));
+    return _apiClient.getStream(ApiPaths.stream(resultId));
   }
 
   Future<DownloadResponse> downloadTrack({
@@ -81,7 +65,7 @@ class BackendRepository {
     required String deviceId,
     ProgressCallback? onProgress,
   }) async {
-    final response = await _apiClient.postBytes(
+    final response = await _apiClient.getBytes(
       ApiPaths.download(resultId),
       queryParameters: {'device_id': deviceId},
       onReceiveProgress: onProgress,
@@ -96,15 +80,14 @@ class BackendRepository {
 
   Future<void> syncDeviceLibrary({
     required String deviceId,
-    required List<Track> tracks,
+    required List<String> resultIds,
   }) async {
     await _apiClient.postJson(
       ApiPaths.deviceLibrarySync,
       data: {
         'device_id': deviceId,
         'tracks': [
-          for (final track in tracks)
-            {'track_key': track.trackKey, 'base_track_key': track.baseTrackKey},
+          for (final resultId in resultIds) {'result_id': resultId},
         ],
       },
     );
@@ -112,18 +95,28 @@ class BackendRepository {
 
   Future<void> confirmDownload({
     required String deviceId,
-    String? trackKey,
-    String? baseTrackKey,
-    String? resultId,
+    required String resultId,
   }) async {
-    final payload = <String, dynamic>{'device_id': deviceId};
-    if (trackKey != null && baseTrackKey != null) {
-      payload['track_key'] = trackKey;
-      payload['base_track_key'] = baseTrackKey;
-    } else if (resultId != null) {
-      payload['result_id'] = resultId;
-    }
-    await _apiClient.postJson(ApiPaths.confirmDownload, data: payload);
+    await _apiClient.postJson(
+      ApiPaths.confirmDownload,
+      data: {'device_id': deviceId, 'result_id': resultId},
+    );
+  }
+
+  Future<void> deleteTrack(String resultId) async {
+    await _apiClient.deleteJson(ApiPaths.track(resultId));
+  }
+
+  Future<CacheCleanupResult> clearCache() async {
+    return CacheCleanupResult.fromJson(
+      await _apiClient.deleteJson(ApiPaths.cache),
+    );
+  }
+
+  Future<CacheCleanupResult> clearServerTemp() async {
+    return CacheCleanupResult.fromJson(
+      await _apiClient.deleteJson(ApiPaths.serverTemp),
+    );
   }
 
   String? _filenameFromHeader(String? header) {

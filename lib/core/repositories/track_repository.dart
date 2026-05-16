@@ -197,6 +197,42 @@ class TrackRepository {
     });
   }
 
+  Future<void> trimRecentlyPlayed({required int limit}) async {
+    if (limit < 1) {
+      await clearRecentlyPlayed();
+      return;
+    }
+    final rows = await _db.select(_db.recentTracks).get();
+    rows.sort((a, b) {
+      final playedCompare = b.playedAt.compareTo(a.playedAt);
+      if (playedCompare != 0) {
+        return playedCompare;
+      }
+      return a.trackId.compareTo(b.trackId);
+    });
+    final staleRows = rows.skip(limit).toList();
+    if (staleRows.isEmpty) {
+      return;
+    }
+    final staleIds = staleRows.map((row) => row.trackId).toList();
+    await _db.transaction(() async {
+      await (_db.delete(
+        _db.recentTracks,
+      )..where((table) => table.trackId.isIn(staleIds))).go();
+      await (_db.update(_db.tracks)..where((table) => table.id.isIn(staleIds)))
+          .write(const TracksCompanion(lastPlayedAt: Value(null)));
+    });
+  }
+
+  Future<void> clearRecentlyPlayed() async {
+    await _db.transaction(() async {
+      await _db.delete(_db.recentTracks).go();
+      await _db
+          .update(_db.tracks)
+          .write(const TracksCompanion(lastPlayedAt: Value(null)));
+    });
+  }
+
   Future<void> deleteLocalState(Track track) async {
     if (track.localPath != null) {
       final file = File(track.localPath!);
@@ -229,16 +265,43 @@ class TrackRepository {
     );
   }
 
-  Future<List<Track>> backendKeyedLocalTracks() async {
+  Future<List<Track>> backendLinkedLocalTracks() async {
     final rows =
         await (_db.select(_db.tracks)..where(
               (table) =>
-                  table.localPath.isNotNull() &
-                  table.trackKey.isNotNull() &
-                  table.baseTrackKey.isNotNull(),
+                  table.localPath.isNotNull() & table.resultId.isNotNull(),
             ))
             .get();
     return rows.map(_fromRow).toList();
+  }
+
+  Future<Track?> markServerRemoved(Track track) async {
+    final updated = track.copyWith(
+      resultId: null,
+      availability: track.availability.copyWith(
+        inServerCache: false,
+        cacheKey: null,
+        preferredOrigin: track.isLocalPlayable
+            ? PreferredOrigin.device
+            : PreferredOrigin.remote,
+      ),
+      localOrigin: track.isLocalPlayable
+          ? track.localOrigin
+          : AppConstants.localOriginRemoteOnly,
+    );
+    if (updated.isLocalPlayable || updated.isLiked) {
+      return upsert(updated);
+    }
+    await (_db.delete(
+      _db.playlistTracks,
+    )..where((table) => table.trackId.equals(track.id))).go();
+    await (_db.delete(
+      _db.recentTracks,
+    )..where((table) => table.trackId.equals(track.id))).go();
+    await (_db.delete(
+      _db.tracks,
+    )..where((table) => table.id.equals(track.id))).go();
+    return null;
   }
 
   Future<void> removeMissingLocalPaths() async {
@@ -263,7 +326,13 @@ class TrackRepository {
 
   Future<Track?> _findByIdentity(Track track) async {
     DbTrack? row;
-    if (track.trackKey != null) {
+    if (track.resultId != null) {
+      final rows = await (_db.select(
+        _db.tracks,
+      )..where((table) => table.resultId.equals(track.resultId!))).get();
+      row = _bestIdentityMatch(rows, track);
+    }
+    if (row == null && track.trackKey != null) {
       final rows = await (_db.select(
         _db.tracks,
       )..where((table) => table.trackKey.equals(track.trackKey!))).get();

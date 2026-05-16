@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/track.dart';
 import '../../../core/widgets/song_card.dart';
+import '../../../core/widgets/track_actions_sheet.dart';
 import '../../playlists/widgets/add_to_playlist_sheet.dart';
 
 class SearchResultList extends StatelessWidget {
@@ -13,6 +14,7 @@ class SearchResultList extends StatelessWidget {
     required this.onLike,
     required this.onDownload,
     required this.onDelete,
+    required this.onDeleteFromServer,
     required this.currentTrackId,
     required this.sourceNames,
     required this.downloadProgress,
@@ -24,6 +26,7 @@ class SearchResultList extends StatelessWidget {
   final ValueChanged<Track> onLike;
   final ValueChanged<Track> onDownload;
   final ValueChanged<Track> onDelete;
+  final ValueChanged<Track> onDeleteFromServer;
   final String? currentTrackId;
   final Map<String, String> sourceNames;
   final Map<String, double> downloadProgress;
@@ -52,6 +55,15 @@ class SearchResultList extends StatelessWidget {
       isPlaying: currentTrackId == track.id,
       sourceLabel: sourceNames[track.sourceId],
       onTap: () => onPlay(track),
+      onLongPress: () => showTrackActionsSheet(
+        context: context,
+        track: track,
+        onLike: () => onLike(track),
+        onAddToPlaylist: () => _showAddToPlaylist(context, track),
+        onDownload: () => onDownload(track),
+        onDeleteLocal: () => onDelete(track),
+        onDeleteFromServer: () => onDeleteFromServer(track),
+      ),
       onLike: () => onLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(context, track),
       onDownload: () => onDownload(track),

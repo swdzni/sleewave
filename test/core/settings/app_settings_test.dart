@@ -20,4 +20,22 @@ void main() {
     expect(AppSettings.shouldWarnForHttp('http://example.test'), isTrue);
     expect(AppSettings.shouldWarnForHttp('http://192.168.1.2:8000'), isFalse);
   });
+
+  test('clamps recent history limit', () {
+    expect(AppSettings.defaults().recentHistoryLimit, 100);
+    expect(
+      AppSettings(
+        deviceId: 'device-one',
+        recentHistoryLimit: 1,
+      ).recentHistoryLimit,
+      5,
+    );
+    expect(
+      AppSettings(
+        deviceId: 'device-one',
+        recentHistoryLimit: 999,
+      ).recentHistoryLimit,
+      200,
+    );
+  });
 }

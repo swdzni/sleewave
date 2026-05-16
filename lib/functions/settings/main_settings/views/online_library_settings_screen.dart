@@ -55,11 +55,34 @@ class _OnlineLibrarySettingsScreenState
             sources: state.sources,
             urlController: _urlController,
             checking: state.checking,
+            clearingCache: state.clearingCache,
+            clearingSongs: state.clearingSongs,
             httpWarning: state.httpWarning,
             onCheck: () => vm.checkUrl(_urlController.text),
             onClear: () async {
               _urlController.clear();
               await vm.clear();
+            },
+            onClearCache: () async {
+              final clear = await _confirm(
+                title: 'Clear server cache?',
+                message: 'This removes cached audio files from the server.',
+                action: 'Clear',
+              );
+              if (clear) {
+                await vm.clearServerCache();
+              }
+            },
+            onClearSongs: () async {
+              final clear = await _confirm(
+                title: 'Clear all server songs?',
+                message:
+                    'This clears cached songs, the server track catalog, and device-library records.',
+                action: 'Clear all',
+              );
+              if (clear) {
+                await vm.clearServerSongs();
+              }
             },
             onOpenGuide: () async {
               await _opener.open(AppConfig.backendSetupRepoUrl);
@@ -79,6 +102,31 @@ class _OnlineLibrarySettingsScreenState
         ],
       ),
     );
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String action,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(action),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }
 

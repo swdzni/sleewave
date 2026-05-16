@@ -22,6 +22,7 @@ class SongCard extends StatelessWidget {
     this.onDelete,
     this.sourceLabel,
     this.downloadProgress,
+    this.onlineAvailable = true,
   });
 
   final Track track;
@@ -36,6 +37,7 @@ class SongCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final String? sourceLabel;
   final double? downloadProgress;
+  final bool onlineAvailable;
 
   @override
   Widget build(BuildContext context) {
@@ -47,16 +49,23 @@ class SongCard extends StatelessWidget {
         : 44.0;
     final height = compact ? 66.0 : 94.0;
     final isDownloading = downloadProgress != null;
+    final playable =
+        track.isLocalPlayable || track.resultId == null || onlineAvailable;
+    final unavailable = !playable;
+    final onEffectiveTap = playable ? onTap : null;
     return Semantics(
-      button: true,
-      label: 'Play ${track.title}',
+      button: playable,
+      enabled: playable,
+      label: playable ? 'Play ${track.title}' : '${track.title} unavailable',
       child: AnimatedContainer(
         key: ValueKey('song-card-${track.id}'),
         duration: const Duration(milliseconds: 260),
         height: height,
         margin: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
-          color: context.palette.surface,
+          color: playable
+              ? context.palette.surface
+              : context.palette.surface.withValues(alpha: 0.62),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isPlaying ? context.palette.accent : context.palette.border,
@@ -72,7 +81,7 @@ class SongCard extends StatelessWidget {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
+          onTap: onEffectiveTap,
           onLongPress: onLongPress,
           child: Padding(
             padding: EdgeInsets.symmetric(
@@ -97,14 +106,23 @@ class SongCard extends StatelessWidget {
                         track.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: unavailable
+                                  ? context.palette.secondaryText
+                                  : null,
+                            ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        track.displayArtist,
+                        playable ? track.displayArtist : 'Unavailable offline',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: playable
+                              ? null
+                              : context.palette.secondaryText,
+                        ),
                       ),
                       if (!compact) ...[
                         const SizedBox(height: 4),
@@ -159,8 +177,14 @@ class SongCard extends StatelessWidget {
                   ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  tooltip: track.isLocalPlayable ? 'Delete' : 'Download',
-                  onPressed: isDownloading
+                  tooltip: track.isLocalPlayable
+                      ? 'Delete'
+                      : onlineAvailable
+                      ? 'Download'
+                      : 'Unavailable',
+                  onPressed:
+                      isDownloading ||
+                          (!track.isLocalPlayable && !onlineAvailable)
                       ? null
                       : track.isLocalPlayable
                       ? onDelete
