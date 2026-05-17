@@ -10,7 +10,9 @@ Future<void> showTrackActionsSheet({
   String? sourceLabel,
   VoidCallback? onLike,
   VoidCallback? onAddToPlaylist,
+  VoidCallback? onRemoveFromPlaylist,
   VoidCallback? onDownload,
+  VoidCallback? onShare,
   VoidCallback? onDeleteLocal,
   VoidCallback? onDeleteFromServer,
 }) {
@@ -23,7 +25,9 @@ Future<void> showTrackActionsSheet({
       sourceLabel: sourceLabel,
       onLike: onLike,
       onAddToPlaylist: onAddToPlaylist,
+      onRemoveFromPlaylist: onRemoveFromPlaylist,
       onDownload: onDownload,
+      onShare: onShare,
       onDeleteLocal: onDeleteLocal,
       onDeleteFromServer: onDeleteFromServer,
     ),
@@ -36,7 +40,9 @@ class _TrackActionsSheet extends StatelessWidget {
     required this.sourceLabel,
     this.onLike,
     this.onAddToPlaylist,
+    this.onRemoveFromPlaylist,
     this.onDownload,
+    this.onShare,
     this.onDeleteLocal,
     this.onDeleteFromServer,
   });
@@ -45,7 +51,9 @@ class _TrackActionsSheet extends StatelessWidget {
   final String? sourceLabel;
   final VoidCallback? onLike;
   final VoidCallback? onAddToPlaylist;
+  final VoidCallback? onRemoveFromPlaylist;
   final VoidCallback? onDownload;
+  final VoidCallback? onShare;
   final VoidCallback? onDeleteLocal;
   final VoidCallback? onDeleteFromServer;
 
@@ -123,6 +131,18 @@ class _TrackActionsSheet extends StatelessWidget {
                 icon: Icons.playlist_add_rounded,
                 label: 'Add to playlist',
                 onTap: onAddToPlaylist!,
+              ),
+            if (onRemoveFromPlaylist != null)
+              _ActionTile(
+                icon: Icons.playlist_remove_rounded,
+                label: 'Remove from playlist',
+                onTap: onRemoveFromPlaylist!,
+              ),
+            if (onShare != null)
+              _ActionTile(
+                icon: Icons.ios_share_rounded,
+                label: 'Share',
+                onTap: onShare!,
               ),
             if (track.isLocalPlayable && onDeleteLocal != null)
               _ActionTile(

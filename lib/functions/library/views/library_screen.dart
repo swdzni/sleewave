@@ -122,6 +122,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       sourceLabel: sourceNames[track.sourceId],
       onLike: () => _toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
+      onShare: () => _shareTrack(track),
       onDeleteLocal: () =>
           ref.read(libraryViewModelProvider).deleteTrack(track),
       onDeleteFromServer: onlineAvailable
@@ -150,6 +151,22 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Could not delete from server.');
+    }
+  }
+
+  Future<void> _shareTrack(Track track) async {
+    try {
+      await ref
+          .read(trackShareServiceProvider)
+          .share(
+            track: track,
+            settings: ref.read(themeControllerProvider).settings,
+            backend: ref.read(backendRepositoryProvider),
+          );
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
     }
   }
 

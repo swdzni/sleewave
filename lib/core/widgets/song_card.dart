@@ -52,6 +52,10 @@ class SongCard extends StatelessWidget {
     final unavailable = !playable;
     final canDownload =
         !track.isLocalPlayable && onlineAvailable && track.resultId != null;
+    final showTransferAction =
+        isDownloading ||
+        (track.isLocalPlayable && onDelete != null) ||
+        (!track.isLocalPlayable && canDownload && onDownload != null);
     final onEffectiveTap = playable ? onTap : null;
     return Semantics(
       button: playable,
@@ -144,21 +148,22 @@ class SongCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(width: 2),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  key: ValueKey('like-${track.id}-${track.isLiked}'),
-                  tooltip: track.isLiked ? 'Unlike' : 'Like',
-                  onPressed: onLike,
-                  icon: Icon(
-                    track.isLiked
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    color: track.isLiked
-                        ? context.palette.danger
-                        : context.palette.secondaryText,
+                if (onLike != null)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    key: ValueKey('like-${track.id}-${track.isLiked}'),
+                    tooltip: track.isLiked ? 'Unlike' : 'Like',
+                    onPressed: onLike,
+                    icon: Icon(
+                      track.isLiked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: track.isLiked
+                          ? context.palette.danger
+                          : context.palette.secondaryText,
+                    ),
                   ),
-                ),
-                if (!compact)
+                if (!compact && onAddToPlaylist != null)
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Add to playlist',
@@ -172,37 +177,33 @@ class SongCard extends StatelessWidget {
                     onPressed: onRemoveFromPlaylist,
                     icon: const Icon(Icons.playlist_remove_rounded),
                   ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: track.isLocalPlayable
-                      ? 'Delete'
-                      : canDownload
-                      ? 'Download'
-                      : 'Unavailable',
-                  onPressed:
-                      isDownloading || (!track.isLocalPlayable && !canDownload)
-                      ? null
-                      : track.isLocalPlayable
-                      ? onDelete
-                      : onDownload,
-                  icon: isDownloading
-                      ? SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            value:
-                                (downloadProgress ?? 0) > 0 &&
-                                    (downloadProgress ?? 0) < 1
-                                ? downloadProgress
-                                : null,
+                if (showTransferAction)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: track.isLocalPlayable ? 'Delete' : 'Download',
+                    onPressed: isDownloading
+                        ? null
+                        : track.isLocalPlayable
+                        ? onDelete
+                        : onDownload,
+                    icon: isDownloading
+                        ? SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value:
+                                  (downloadProgress ?? 0) > 0 &&
+                                      (downloadProgress ?? 0) < 1
+                                  ? downloadProgress
+                                  : null,
+                            ),
+                          )
+                        : Icon(
+                            track.isLocalPlayable
+                                ? Icons.delete_outline_rounded
+                                : Icons.download_rounded,
                           ),
-                        )
-                      : Icon(
-                          track.isLocalPlayable
-                              ? Icons.delete_outline_rounded
-                              : Icons.download_rounded,
-                        ),
-                ),
+                  ),
               ],
             ),
           ),

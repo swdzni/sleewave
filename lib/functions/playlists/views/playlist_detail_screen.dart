@@ -111,13 +111,6 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 onlineAvailable: onlineAvailable,
                 onTap: () => vm.playFrom(track),
                 onLongPress: () => _showTrackActions(track, onlineAvailable),
-                onLike: () => vm.toggleLike(track),
-                onAddToPlaylist: () => _showAddToPlaylist(track),
-                onRemoveFromPlaylist: () => vm.remove(track),
-                onDownload: onlineAvailable
-                    ? () => _downloadTrack(track)
-                    : null,
-                onDelete: () => _deleteLocalState(track),
                 downloadProgress: downloadProgress[track.id],
               ),
         ],
@@ -147,7 +140,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           .read(playlistDetailViewModelProvider(widget.playlistId))
           .toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
+      onRemoveFromPlaylist: () => ref
+          .read(playlistDetailViewModelProvider(widget.playlistId))
+          .remove(track),
       onDownload: onlineAvailable ? () => _downloadTrack(track) : null,
+      onShare: () => _shareTrack(track),
       onDeleteLocal: () => _deleteLocalState(track),
       onDeleteFromServer: onlineAvailable
           ? () => _deleteFromServer(track)
@@ -238,6 +235,22 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     await ref.read(trackRepositoryProvider).deleteLocalState(track);
     notifyLibraryChangedFromWidget(ref);
     await ref.read(playlistDetailViewModelProvider(widget.playlistId)).load();
+  }
+
+  Future<void> _shareTrack(Track track) async {
+    try {
+      await ref
+          .read(trackShareServiceProvider)
+          .share(
+            track: track,
+            settings: ref.read(themeControllerProvider).settings,
+            backend: ref.read(backendRepositoryProvider),
+          );
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
+    }
   }
 
   Future<void> _deleteFromServer(Track track) async {

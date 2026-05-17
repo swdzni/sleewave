@@ -13,6 +13,7 @@ class SearchResultList extends StatelessWidget {
     required this.onPlay,
     required this.onLike,
     required this.onDownload,
+    required this.onShare,
     required this.onDelete,
     required this.onDeleteFromServer,
     required this.currentTrackId,
@@ -26,6 +27,7 @@ class SearchResultList extends StatelessWidget {
   final ValueChanged<Track> onPlay;
   final ValueChanged<Track> onLike;
   final ValueChanged<Track> onDownload;
+  final ValueChanged<Track> onShare;
   final ValueChanged<Track> onDelete;
   final ValueChanged<Track> onDeleteFromServer;
   final String? currentTrackId;
@@ -64,6 +66,7 @@ class SearchResultList extends StatelessWidget {
         onLike: () => onLike(track),
         onAddToPlaylist: () => _showAddToPlaylist(context, track),
         onDownload: onlineAvailable ? () => onDownload(track) : null,
+        onShare: () => onShare(track),
         onDeleteLocal: () => onDelete(track),
         onDeleteFromServer: onlineAvailable
             ? () => onDeleteFromServer(track)

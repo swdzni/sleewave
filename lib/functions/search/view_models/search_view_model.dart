@@ -244,6 +244,26 @@ class SearchViewModel extends SafeChangeNotifier {
     notifyLibraryChanged(_ref);
   }
 
+  Future<void> shareTrack(Track track) async {
+    try {
+      await _ref
+          .read(trackShareServiceProvider)
+          .share(
+            track: track,
+            settings: _theme.settings,
+            backend: _ref.read(backendRepositoryProvider),
+          );
+      _state = _state.copyWith(error: null);
+      notifyListeners();
+    } on ApiException catch (error) {
+      _state = _state.copyWith(error: error.message);
+      notifyListeners();
+    } catch (error) {
+      _state = _state.copyWith(error: error.toString());
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteFromServer(Track track) async {
     final backend = _ref.read(backendRepositoryProvider);
     final resultId = track.resultId;

@@ -77,6 +77,7 @@ class SearchScreen extends ConsumerWidget {
               onPlay: vm.playTrack,
               onLike: vm.toggleLike,
               onDownload: vm.downloadTrack,
+              onShare: vm.shareTrack,
               onDelete: vm.deleteTrack,
               onDeleteFromServer: vm.deleteFromServer,
               currentTrackId: currentTrackId,

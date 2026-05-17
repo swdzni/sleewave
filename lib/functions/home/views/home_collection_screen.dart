@@ -258,6 +258,22 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
     });
   }
 
+  Future<void> _shareTrack(Track track) async {
+    try {
+      await ref
+          .read(trackShareServiceProvider)
+          .share(
+            track: track,
+            settings: ref.read(themeControllerProvider).settings,
+            backend: ref.read(backendRepositoryProvider),
+          );
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
+    }
+  }
+
   void _showAddToPlaylist(Track track) {
     showModalBottomSheet<void>(
       context: context,
@@ -279,6 +295,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       onLike: () => _toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
       onDownload: onlineAvailable ? () => _downloadTrack(track) : null,
+      onShare: () => _shareTrack(track),
       onDeleteLocal: () => _deleteLocalState(track),
       onDeleteFromServer: onlineAvailable
           ? () => _deleteFromServer(track)

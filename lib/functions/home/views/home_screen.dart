@@ -262,6 +262,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onLike: () => _toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
       onDownload: onlineAvailable ? () => _downloadTrack(track) : null,
+      onShare: () => _shareTrack(track),
       onDeleteLocal: () => _deleteLocalState(track),
       onDeleteFromServer: onlineAvailable
           ? () => _deleteFromServer(track)
@@ -301,6 +302,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _deleteLocalState(Track track) async {
     await ref.read(trackRepositoryProvider).deleteLocalState(track);
     notifyLibraryChangedFromWidget(ref);
+  }
+
+  Future<void> _shareTrack(Track track) async {
+    try {
+      await ref
+          .read(trackShareServiceProvider)
+          .share(
+            track: track,
+            settings: ref.read(themeControllerProvider).settings,
+            backend: ref.read(backendRepositoryProvider),
+          );
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
+    }
   }
 
   Future<void> _deleteFromServer(Track track) async {

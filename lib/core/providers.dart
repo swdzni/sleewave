@@ -15,6 +15,7 @@ import 'services/files/metadata_service.dart';
 import 'services/playback/playback_service.dart';
 import 'services/playback/queue_service.dart';
 import 'services/search/search_service.dart';
+import 'services/share/track_share_service.dart';
 import 'services/sync/sync_service.dart';
 import 'theme/theme_controller.dart';
 
@@ -97,6 +98,10 @@ final downloadServiceProvider = ChangeNotifierProvider<DownloadService>((ref) {
     ref.read(trackRepositoryProvider),
     ref.read(syncServiceProvider),
   );
+});
+
+final trackShareServiceProvider = Provider<TrackShareService>((ref) {
+  return TrackShareService(ref.read(fileStorageProvider));
 });
 
 final backendRepositoryProvider = Provider<BackendRepository?>((ref) {

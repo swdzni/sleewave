@@ -7,10 +7,14 @@ import 'package:sleewave/core/widgets/song_card.dart';
 
 void main() {
   testWidgets('shows filled and outline heart states', (tester) async {
-    await tester.pumpWidget(_wrap(SongCard(track: _track(isLiked: true))));
+    await tester.pumpWidget(
+      _wrap(SongCard(track: _track(isLiked: true), onLike: () {})),
+    );
     expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
 
-    await tester.pumpWidget(_wrap(SongCard(track: _track(isLiked: false))));
+    await tester.pumpWidget(
+      _wrap(SongCard(track: _track(isLiked: false), onLike: () {})),
+    );
     expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
   });
 
@@ -105,6 +109,16 @@ void main() {
     expect(find.text('Unavailable offline'), findsOneWidget);
     await tester.tap(find.byType(SongCard));
     expect(tapped, isFalse);
+  });
+
+  testWidgets('hides inline actions when callbacks are omitted', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_wrap(SongCard(track: _track(resultId: 'r'))));
+
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+    expect(find.byIcon(Icons.playlist_add_rounded), findsNothing);
+    expect(find.byIcon(Icons.download_rounded), findsNothing);
   });
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sleewave/core/constants/app_constants.dart';
 import 'package:sleewave/core/database/app_database.dart';
 import 'package:sleewave/core/models/track.dart';
+import 'package:sleewave/core/models/track_availability.dart';
 import 'package:sleewave/core/repositories/playlist_repository.dart';
 import 'package:sleewave/core/repositories/track_repository.dart';
 
@@ -53,6 +54,29 @@ void main() {
 
     await playlists.removeTrack(playlist.id, track);
     expect(await playlists.trackCount(playlist.id), 0);
+  });
+
+  test('playlist tracks keep server cache availability', () async {
+    final now = DateTime(2026);
+    final track = await tracks.upsert(
+      Track(
+        id: 'track-1',
+        title: 'Server Cut',
+        resultId: 'result-1',
+        availability: const TrackAvailability(inServerCache: true),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final playlist = await playlists.create('Server songs');
+
+    await playlists.addTrack(playlist.id, track);
+    final playlistTrack = (await playlists.tracksForPlaylist(
+      playlist.id,
+    )).single;
+
+    expect(playlistTrack.isServerCached, isTrue);
+    expect(playlistTrack.resultId, 'result-1');
   });
 
   test(

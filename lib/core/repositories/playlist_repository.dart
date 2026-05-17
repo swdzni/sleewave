@@ -7,6 +7,7 @@ import '../constants/app_constants.dart';
 import '../database/app_database.dart';
 import '../models/playlist.dart';
 import '../models/track.dart';
+import '../models/track_availability.dart';
 import 'track_repository.dart';
 
 class PlaylistRepository {
@@ -179,6 +180,12 @@ class PlaylistRepository {
         resultId: dbTrack.resultId,
         trackKey: dbTrack.trackKey,
         baseTrackKey: dbTrack.baseTrackKey,
+        availability: TrackAvailability(
+          inServerCache: dbTrack.inServerCache,
+          onDevice: dbTrack.onDevice,
+          cacheKey: dbTrack.cacheKey,
+          preferredOrigin: PreferredOrigin.fromJson(dbTrack.preferredOrigin),
+        ),
         localPath: dbTrack.localPath,
         localOrigin: dbTrack.localOrigin,
         isLiked: dbTrack.isLiked,

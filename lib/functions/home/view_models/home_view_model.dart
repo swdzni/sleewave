@@ -17,10 +17,12 @@ class HomeViewModel extends SafeChangeNotifier {
   final AppStartupController _startup;
   final ThemeController _theme;
   HomeState _state = const HomeState();
+  int _loadGeneration = 0;
 
   HomeState get state => _state;
 
   Future<void> load({bool refreshStatus = false}) async {
+    final generation = ++_loadGeneration;
     _state = _state.copyWith(loading: true);
     notifyListeners();
     if (refreshStatus) {
@@ -32,6 +34,9 @@ class HomeViewModel extends SafeChangeNotifier {
     );
     final local = await _tracks.localTracks();
     final savedSongs = await _hydrateTracks(_startup.savedSongs);
+    if (generation != _loadGeneration) {
+      return;
+    }
     _state = HomeState(
       loading: false,
       status: _startup.status,
