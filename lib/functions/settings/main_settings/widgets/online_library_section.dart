@@ -63,7 +63,7 @@ class OnlineLibrarySection extends StatelessWidget {
           '1. Prepare a server or VPS.\n'
           '2. Clone and run the Sleewave backend on your server.\n'
           '3. Paste your server link here.\n'
-          '4. Press Check.',
+          '4. Press Save.',
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
@@ -107,7 +107,7 @@ class OnlineLibrarySection extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.wifi_tethering_rounded),
-              label: const Text('Check'),
+              label: const Text('Save'),
             ),
             OutlinedButton.icon(
               onPressed: onClear,

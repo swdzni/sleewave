@@ -45,15 +45,29 @@ class BackendRepository {
     );
   }
 
-  Future<List<Track>> getSavedSongs() async {
-    final json = await _apiClient.getJson(ApiPaths.savedSongs);
-    return (json['songs'] as List? ?? const []).map((item) {
-      final songJson = Map<String, dynamic>.from(item as Map);
-      return Track.remoteFromJson(
-        songJson,
-        id: songJson['result_id'] as String? ?? '',
-      );
-    }).toList();
+  Future<SavedSongsPage> getSavedSongsPage({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    return SavedSongsPage.fromJson(
+      await _apiClient.getJson(
+        ApiPaths.savedSongs,
+        queryParameters: {'limit': limit, 'offset': offset},
+      ),
+    );
+  }
+
+  Future<List<Track>> getSavedSongs({int pageSize = 50}) async {
+    final songs = <Track>[];
+    var offset = 0;
+    while (true) {
+      final page = await getSavedSongsPage(limit: pageSize, offset: offset);
+      songs.addAll(page.songs);
+      if (!page.hasMore || page.count == 0) {
+        return songs;
+      }
+      offset += page.count;
+    }
   }
 
   Future<Response<ResponseBody>> openStream(String resultId) {
@@ -103,8 +117,10 @@ class BackendRepository {
     );
   }
 
-  Future<void> deleteTrack(String resultId) async {
-    await _apiClient.deleteJson(ApiPaths.track(resultId));
+  Future<DeleteTrackResult> deleteTrack(String resultId) async {
+    return DeleteTrackResult.fromJson(
+      await _apiClient.deleteJson(ApiPaths.track(resultId)),
+    );
   }
 
   Future<CacheCleanupResult> clearCache() async {

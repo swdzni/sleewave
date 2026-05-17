@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../models/track.dart';
 import '../theme/app_colors.dart';
+import 'track_badges.dart';
 
 Future<void> showTrackActionsSheet({
   required BuildContext context,
   required Track track,
+  String? sourceLabel,
   VoidCallback? onLike,
   VoidCallback? onAddToPlaylist,
   VoidCallback? onDownload,
@@ -18,6 +20,7 @@ Future<void> showTrackActionsSheet({
     useRootNavigator: true,
     builder: (context) => _TrackActionsSheet(
       track: track,
+      sourceLabel: sourceLabel,
       onLike: onLike,
       onAddToPlaylist: onAddToPlaylist,
       onDownload: onDownload,
@@ -30,6 +33,7 @@ Future<void> showTrackActionsSheet({
 class _TrackActionsSheet extends StatelessWidget {
   const _TrackActionsSheet({
     required this.track,
+    required this.sourceLabel,
     this.onLike,
     this.onAddToPlaylist,
     this.onDownload,
@@ -38,6 +42,7 @@ class _TrackActionsSheet extends StatelessWidget {
   });
 
   final Track track;
+  final String? sourceLabel;
   final VoidCallback? onLike;
   final VoidCallback? onAddToPlaylist;
   final VoidCallback? onDownload;
@@ -76,6 +81,34 @@ class _TrackActionsSheet extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            const SizedBox(height: 8),
+            TrackBadges(track: track),
+            if (track.sourceId != null ||
+                track.trackKey != null ||
+                track.baseTrackKey != null ||
+                track.album != null) ...[
+              const SizedBox(height: 8),
+              if (track.sourceId != null)
+                Text(
+                  'Source: ${sourceLabel ?? track.sourceId}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if (track.trackKey != null)
+                Text(
+                  'Track key: ${track.trackKey}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if (track.baseTrackKey != null)
+                Text(
+                  'Base key: ${track.baseTrackKey}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if (track.album != null)
+                Text(
+                  'Album: ${track.album}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
             const SizedBox(height: 12),
             if (onLike != null)
               _ActionTile(
@@ -97,7 +130,9 @@ class _TrackActionsSheet extends StatelessWidget {
                 label: 'Delete from device',
                 onTap: onDeleteLocal!,
               )
-            else if (!track.isLocalPlayable && onDownload != null)
+            else if (!track.isLocalPlayable &&
+                track.resultId != null &&
+                onDownload != null)
               _ActionTile(
                 icon: Icons.download_rounded,
                 label: 'Download',

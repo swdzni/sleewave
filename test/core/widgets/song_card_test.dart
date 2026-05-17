@@ -14,20 +14,20 @@ void main() {
     expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
   });
 
-  testWidgets('shows source badge and playlist action on normal rows', (
+  testWidgets('shows availability badge and playlist action on normal rows', (
     tester,
   ) async {
     await tester.pumpWidget(
       _wrap(
         SongCard(
-          track: _track(sourceId: 'source-a'),
-          sourceLabel: 'Source A',
+          track: _track(resultId: 'result-1'),
           onAddToPlaylist: () {},
         ),
       ),
     );
 
-    expect(find.text('Source A'), findsOneWidget);
+    expect(find.text('Remote'), findsOneWidget);
+    expect(find.text('Source A'), findsNothing);
     expect(find.byIcon(Icons.playlist_add_rounded), findsOneWidget);
   });
 
@@ -45,7 +45,6 @@ void main() {
                 resultId: 'result-1',
                 durationSeconds: 700,
               ),
-              sourceLabel: 'Very Long Source Name',
               isPlaying: true,
               onAddToPlaylist: () {},
             ),
@@ -90,6 +89,23 @@ void main() {
       expect(tapped, isFalse);
     },
   );
+
+  testWidgets('remote rows without result IDs are unavailable', (tester) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      _wrap(
+        SongCard(
+          track: _track(sourceId: 'source-a'),
+          onlineAvailable: true,
+          onTap: () => tapped = true,
+        ),
+      ),
+    );
+
+    expect(find.text('Unavailable offline'), findsOneWidget);
+    await tester.tap(find.byType(SongCard));
+    expect(tapped, isFalse);
+  });
 }
 
 Widget _wrap(Widget child) {

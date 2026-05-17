@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../../core/app_startup_controller.dart';
@@ -19,6 +20,7 @@ class SettingsViewModel extends SafeChangeNotifier {
     this._startup, {
     BackendRepositoryFactory? backendFactory,
     StartupRefresh? refreshBackend,
+    Ref? ref,
   }) : _backendFactory =
            backendFactory ??
            ((baseUrl) => BackendRepository(ApiClient(baseUrl: baseUrl))),
@@ -26,12 +28,14 @@ class SettingsViewModel extends SafeChangeNotifier {
            refreshBackend ??
            (({bool keepConnectedStatus = false}) => _startup.refreshBackend(
              keepConnectedStatus: keepConnectedStatus,
-           ));
+           )),
+       _ref = ref;
 
   final ThemeController _theme;
   final AppStartupController _startup;
   final BackendRepositoryFactory _backendFactory;
   final StartupRefresh _refreshBackend;
+  final Ref? _ref;
   late SettingsState _state = SettingsState(
     settings: _theme.settings,
     status: _startup.status,
@@ -48,9 +52,7 @@ class SettingsViewModel extends SafeChangeNotifier {
       httpWarning: AppSettings.shouldWarnForHttp(
         _theme.settings.backendBaseUrl,
       ),
-      checkedUrl: _startup.status.isConnected
-          ? _theme.settings.backendBaseUrl
-          : null,
+      checkedUrl: _theme.settings.backendBaseUrl,
     );
     notifyListeners();
   }
@@ -65,7 +67,7 @@ class SettingsViewModel extends SafeChangeNotifier {
     load();
   }
 
-  Future<void> checkUrl(String rawUrl) async {
+  Future<void> saveUrl(String rawUrl) async {
     try {
       final url = AppSettings.normalizeBackendUrl(rawUrl);
       if (url == null) {
@@ -97,20 +99,33 @@ class SettingsViewModel extends SafeChangeNotifier {
         status: const ServerStatus.connected(),
         sources: sources,
         checkedUrl: url,
-        message: 'Connected',
+        message: 'Saved',
       );
       notifyListeners();
       await _refreshBackend(keepConnectedStatus: true);
+      _state = _state.copyWith(
+        status:
+            _startup.status.isConnected ||
+                _startup.status.kind == ServerStatusKind.problem
+            ? _startup.status
+            : const ServerStatus.connected(),
+        sources: _startup.sources.isEmpty ? sources : _startup.sources,
+        message: 'Saved',
+      );
+      notifyListeners();
+      _notifyLibraryChanged();
     } catch (error) {
       _state = _state.copyWith(
         checking: false,
         status: ServerStatus.problem('$error'),
-        checkedUrl: null,
+        checkedUrl: _theme.settings.backendBaseUrl,
         message: '$error',
       );
       notifyListeners();
     }
   }
+
+  Future<void> checkUrl(String rawUrl) => saveUrl(rawUrl);
 
   Future<void> saveDevice(String deviceId) async {
     final cleanedDeviceId = deviceId.trim();
@@ -127,6 +142,7 @@ class SettingsViewModel extends SafeChangeNotifier {
     _state = _state.copyWith(settings: settings, message: 'Saved');
     notifyListeners();
     await _refreshBackend(keepConnectedStatus: _startup.status.isConnected);
+    _notifyLibraryChanged();
   }
 
   Future<void> setRecentHistoryLimit(int limit) async {
@@ -137,6 +153,7 @@ class SettingsViewModel extends SafeChangeNotifier {
     );
     _state = _state.copyWith(settings: settings, message: 'Saved');
     notifyListeners();
+    _notifyLibraryChanged();
   }
 
   Future<void> clear() async {
@@ -147,6 +164,7 @@ class SettingsViewModel extends SafeChangeNotifier {
     await _theme.saveSettings(settings);
     await _refreshBackend();
     load();
+    _notifyLibraryChanged();
   }
 
   Future<void> clearServerCache() async {
@@ -160,10 +178,11 @@ class SettingsViewModel extends SafeChangeNotifier {
       final result = await backend.clearCache();
       _state = _state.copyWith(
         clearingCache: false,
-        message: 'Cleared ${result.deletedCount} cached files.',
+        message: result.message('cached files'),
       );
       notifyListeners();
       await _refreshBackend(keepConnectedStatus: true);
+      _notifyLibraryChanged();
     } catch (error) {
       _state = _state.copyWith(
         clearingCache: false,
@@ -185,10 +204,11 @@ class SettingsViewModel extends SafeChangeNotifier {
       final result = await backend.clearServerTemp();
       _state = _state.copyWith(
         clearingSongs: false,
-        message: 'Cleared ${result.deletedCount} server songs.',
+        message: result.message('server files'),
       );
       notifyListeners();
       await _refreshBackend(keepConnectedStatus: true);
+      _notifyLibraryChanged();
     } catch (error) {
       _state = _state.copyWith(
         clearingSongs: false,
@@ -208,6 +228,13 @@ class SettingsViewModel extends SafeChangeNotifier {
     }
     return _backendFactory(baseUrl);
   }
+
+  void _notifyLibraryChanged() {
+    final ref = _ref;
+    if (ref != null) {
+      notifyLibraryChanged(ref);
+    }
+  }
 }
 
 final settingsViewModelProvider =
@@ -215,5 +242,6 @@ final settingsViewModelProvider =
       return SettingsViewModel(
         ref.read(themeControllerProvider),
         ref.read(appStartupControllerProvider),
+        ref: ref,
       );
     });

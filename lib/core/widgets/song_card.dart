@@ -20,7 +20,6 @@ class SongCard extends StatelessWidget {
     this.onRemoveFromPlaylist,
     this.onDownload,
     this.onDelete,
-    this.sourceLabel,
     this.downloadProgress,
     this.onlineAvailable = true,
   });
@@ -35,7 +34,6 @@ class SongCard extends StatelessWidget {
   final VoidCallback? onRemoveFromPlaylist;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
-  final String? sourceLabel;
   final double? downloadProgress;
   final bool onlineAvailable;
 
@@ -50,8 +48,10 @@ class SongCard extends StatelessWidget {
     final height = compact ? 66.0 : 94.0;
     final isDownloading = downloadProgress != null;
     final playable =
-        track.isLocalPlayable || track.resultId == null || onlineAvailable;
+        track.isLocalPlayable || (track.resultId != null && onlineAvailable);
     final unavailable = !playable;
+    final canDownload =
+        !track.isLocalPlayable && onlineAvailable && track.resultId != null;
     final onEffectiveTap = playable ? onTap : null;
     return Semantics(
       button: playable,
@@ -131,10 +131,7 @@ class SongCard extends StatelessWidget {
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             physics: const NeverScrollableScrollPhysics(),
-                            child: TrackBadges(
-                              track: track,
-                              sourceLabel: sourceLabel,
-                            ),
+                            child: TrackBadges(track: track),
                           ),
                         ),
                       ],
@@ -179,12 +176,11 @@ class SongCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   tooltip: track.isLocalPlayable
                       ? 'Delete'
-                      : onlineAvailable
+                      : canDownload
                       ? 'Download'
                       : 'Unavailable',
                   onPressed:
-                      isDownloading ||
-                          (!track.isLocalPlayable && !onlineAvailable)
+                      isDownloading || (!track.isLocalPlayable && !canDownload)
                       ? null
                       : track.isLocalPlayable
                       ? onDelete

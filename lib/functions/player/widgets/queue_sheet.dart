@@ -244,7 +244,7 @@ class _PlayingBarsState extends State<_PlayingBars>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final value = widget.playing ? _controller.value : 0.5;
+        final value = _controller.value;
         return SizedBox(
           width: 24,
           height: 22,

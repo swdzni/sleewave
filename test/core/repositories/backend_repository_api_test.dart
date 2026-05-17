@@ -59,6 +59,81 @@ void main() {
     expect(songs.single.resultId, 'stable-track');
   });
 
+  test('saved songs follow paginated responses', () async {
+    final calls = <RequestOptions>[];
+    final repository = _repository((options) {
+      calls.add(options);
+      final offset = options.queryParameters['offset'] as int;
+      if (offset == 0) {
+        return {
+          'songs': [
+            {'title': 'One', 'result_id': 'one'},
+            {'title': 'Two', 'result_id': 'two'},
+          ],
+          'count': 2,
+          'total': 3,
+          'limit': 2,
+          'offset': 0,
+          'has_more': true,
+        };
+      }
+      return {
+        'songs': [
+          {'title': 'Three', 'result_id': 'three'},
+        ],
+        'count': 1,
+        'total': 3,
+        'limit': 2,
+        'offset': 2,
+        'has_more': false,
+      };
+    });
+
+    final songs = await repository.getSavedSongs(pageSize: 2);
+
+    expect(songs.map((track) => track.id), ['one', 'two', 'three']);
+    expect(calls.map((options) => options.queryParameters), [
+      {'limit': 2, 'offset': 0},
+      {'limit': 2, 'offset': 2},
+    ]);
+  });
+
+  test('delete track parses backend response message', () async {
+    late RequestOptions sentOptions;
+    final repository = _repository((options) {
+      sentOptions = options;
+      return {'result_id': 'stable-track', 'cache_deleted': true};
+    });
+
+    final result = await repository.deleteTrack('stable-track');
+
+    expect(sentOptions.method, 'DELETE');
+    expect(sentOptions.path, '/tracks/stable-track');
+    expect(result.resultId, 'stable-track');
+    expect(result.cacheDeleted, isTrue);
+    expect(result.message, contains('stable-track'));
+  });
+
+  test('cleanup responses parse deleted count and cleared flags', () async {
+    var serverTemp = false;
+    final repository = _repository((options) {
+      serverTemp = options.path == '/server-temp';
+      return {
+        'deleted_count': serverTemp ? 7 : 3,
+        'track_catalog_cleared': serverTemp,
+        'device_library_cleared': serverTemp,
+      };
+    });
+
+    final cache = await repository.clearCache();
+    final temp = await repository.clearServerTemp();
+
+    expect(cache.message('cached files'), contains('Deleted 3 cached files'));
+    expect(cache.trackCatalogCleared, isFalse);
+    expect(temp.message('server files'), contains('Deleted 7 server files'));
+    expect(temp.deviceLibraryCleared, isTrue);
+  });
+
   test('stream opens result ID with GET', () async {
     late RequestOptions sentOptions;
     final repository = _repository((options) {

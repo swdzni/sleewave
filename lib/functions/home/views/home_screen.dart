@@ -40,10 +40,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final player = ref.watch(playerViewModelProvider);
     final playbackSnapshot = player.state.snapshot;
     final currentTrackId = playbackSnapshot.currentTrack?.id;
-    final sourceNames = {
-      for (final source in ref.watch(appStartupControllerProvider).sources)
-        source.id: source.name,
-    };
+    final onlineAvailable = ref
+        .watch(appStartupControllerProvider)
+        .status
+        .isConnected;
     final downloadProgress = ref.watch(downloadServiceProvider).progress;
     return AppScaffold(
       safeBottom: false,
@@ -153,12 +153,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         track: track,
                         mode: SongCardMode.compact,
                         isPlaying: currentTrackId == track.id,
-                        sourceLabel: sourceNames[track.sourceId],
+                        onlineAvailable: onlineAvailable,
                         onTap: () =>
                             player.play(track, queue: state.recentTracks),
-                        onLongPress: () => _showTrackActions(track),
+                        onLongPress: () =>
+                            _showTrackActions(track, onlineAvailable),
                         onLike: () => _toggleLike(track),
-                        onDownload: () => _downloadTrack(track),
+                        onDownload: onlineAvailable
+                            ? () => _downloadTrack(track)
+                            : null,
                         onDelete: () => _deleteLocalState(track),
                         downloadProgress: downloadProgress[track.id],
                       ),
@@ -182,13 +185,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             SongCard(
                               track: track,
                               isPlaying: currentTrackId == track.id,
-                              sourceLabel: sourceNames[track.sourceId],
+                              onlineAvailable: onlineAvailable,
                               onTap: () =>
                                   player.play(track, queue: state.savedSongs),
-                              onLongPress: () => _showTrackActions(track),
+                              onLongPress: () =>
+                                  _showTrackActions(track, onlineAvailable),
                               onLike: () => _toggleLike(track),
                               onAddToPlaylist: () => _showAddToPlaylist(track),
-                              onDownload: () => _downloadTrack(track),
+                              onDownload: onlineAvailable
+                                  ? () => _downloadTrack(track)
+                                  : null,
                               downloadProgress: downloadProgress[track.id],
                             ),
                         ],
@@ -207,13 +213,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           SongCard(
                             track: track,
                             isPlaying: currentTrackId == track.id,
-                            sourceLabel: sourceNames[track.sourceId],
+                            onlineAvailable: onlineAvailable,
                             onTap: () =>
                                 player.play(track, queue: state.localPreview),
-                            onLongPress: () => _showTrackActions(track),
+                            onLongPress: () =>
+                                _showTrackActions(track, onlineAvailable),
                             onLike: () => _toggleLike(track),
                             onAddToPlaylist: () => _showAddToPlaylist(track),
-                            onDownload: () => _downloadTrack(track),
+                            onDownload: onlineAvailable
+                                ? () => _downloadTrack(track)
+                                : null,
                             onDelete: () => _deleteLocalState(track),
                             downloadProgress: downloadProgress[track.id],
                           ),
@@ -241,15 +250,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showTrackActions(Track track) {
+  void _showTrackActions(Track track, bool onlineAvailable) {
+    final sourceNames = {
+      for (final source in ref.read(appStartupControllerProvider).sources)
+        source.id: source.name,
+    };
     showTrackActionsSheet(
       context: context,
       track: track,
+      sourceLabel: sourceNames[track.sourceId],
       onLike: () => _toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
-      onDownload: () => _downloadTrack(track),
+      onDownload: onlineAvailable ? () => _downloadTrack(track) : null,
       onDeleteLocal: () => _deleteLocalState(track),
-      onDeleteFromServer: () => _deleteFromServer(track),
+      onDeleteFromServer: onlineAvailable
+          ? () => _deleteFromServer(track)
+          : null,
     );
   }
 
@@ -295,7 +311,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
     try {
-      await backend.deleteTrack(resultId);
+      final result = await backend.deleteTrack(resultId);
       final updated = await ref
           .read(trackRepositoryProvider)
           .markServerRemoved(track);
@@ -308,7 +324,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .read(appStartupControllerProvider)
           .refreshBackend(keepConnectedStatus: true);
       notifyLibraryChangedFromWidget(ref);
-      _showMessage('Deleted from server.');
+      _showMessage(result.message);
     } on ApiException catch (error) {
       _showMessage(error.message);
     } catch (_) {

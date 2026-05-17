@@ -135,7 +135,7 @@ class SearchViewModel extends SafeChangeNotifier {
     notifyListeners();
 
     final backend = _ref.read(backendRepositoryProvider);
-    if (backend == null) {
+    if (backend == null || !_startup.status.isConnected) {
       _state = _state.copyWith(isSearching: false, error: null);
       notifyListeners();
       return;
@@ -205,7 +205,7 @@ class SearchViewModel extends SafeChangeNotifier {
 
   Future<void> downloadTrack(Track track) async {
     final backend = _ref.read(backendRepositoryProvider);
-    if (backend == null) {
+    if (backend == null || !_startup.status.isConnected) {
       _state = _state.copyWith(error: 'Connect Online Library to download.');
       notifyListeners();
       return;
@@ -247,13 +247,13 @@ class SearchViewModel extends SafeChangeNotifier {
   Future<void> deleteFromServer(Track track) async {
     final backend = _ref.read(backendRepositoryProvider);
     final resultId = track.resultId;
-    if (backend == null || resultId == null) {
+    if (backend == null || resultId == null || !_startup.status.isConnected) {
       _state = _state.copyWith(error: 'Connect Online Library first.');
       notifyListeners();
       return;
     }
     try {
-      await backend.deleteTrack(resultId);
+      final result = await backend.deleteTrack(resultId);
       final updated = await _tracks.markServerRemoved(track);
       _state = updated == null
           ? _state.copyWith(
@@ -267,6 +267,7 @@ class SearchViewModel extends SafeChangeNotifier {
               error: null,
             );
       await _startup.refreshBackend(keepConnectedStatus: true);
+      _state = _state.copyWith(error: result.message);
       notifyLibraryChanged(_ref);
       notifyListeners();
     } on ApiException catch (error) {

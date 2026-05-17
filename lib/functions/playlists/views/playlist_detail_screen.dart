@@ -44,10 +44,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
         .snapshot
         .currentTrack
         ?.id;
-    final sourceNames = {
-      for (final source in ref.watch(appStartupControllerProvider).sources)
-        source.id: source.name,
-    };
+    final onlineAvailable = ref
+        .watch(appStartupControllerProvider)
+        .status
+        .isConnected;
     final downloadProgress = ref.watch(downloadServiceProvider).progress;
     return AppScaffold(
       safeBottom: false,
@@ -108,13 +108,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               SongCard(
                 track: track,
                 isPlaying: currentTrackId == track.id,
-                sourceLabel: sourceNames[track.sourceId],
+                onlineAvailable: onlineAvailable,
                 onTap: () => vm.playFrom(track),
-                onLongPress: () => _showTrackActions(track),
+                onLongPress: () => _showTrackActions(track, onlineAvailable),
                 onLike: () => vm.toggleLike(track),
                 onAddToPlaylist: () => _showAddToPlaylist(track),
                 onRemoveFromPlaylist: () => vm.remove(track),
-                onDownload: () => _downloadTrack(track),
+                onDownload: onlineAvailable
+                    ? () => _downloadTrack(track)
+                    : null,
+                onDelete: () => _deleteLocalState(track),
                 downloadProgress: downloadProgress[track.id],
               ),
         ],
@@ -131,16 +134,24 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     );
   }
 
-  void _showTrackActions(Track track) {
+  void _showTrackActions(Track track, bool onlineAvailable) {
+    final sourceNames = {
+      for (final source in ref.read(appStartupControllerProvider).sources)
+        source.id: source.name,
+    };
     showTrackActionsSheet(
       context: context,
       track: track,
+      sourceLabel: sourceNames[track.sourceId],
       onLike: () => ref
           .read(playlistDetailViewModelProvider(widget.playlistId))
           .toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
-      onDownload: () => _downloadTrack(track),
-      onDeleteFromServer: () => _deleteFromServer(track),
+      onDownload: onlineAvailable ? () => _downloadTrack(track) : null,
+      onDeleteLocal: () => _deleteLocalState(track),
+      onDeleteFromServer: onlineAvailable
+          ? () => _deleteFromServer(track)
+          : null,
     );
   }
 
@@ -223,6 +234,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     }
   }
 
+  Future<void> _deleteLocalState(Track track) async {
+    await ref.read(trackRepositoryProvider).deleteLocalState(track);
+    notifyLibraryChangedFromWidget(ref);
+    await ref.read(playlistDetailViewModelProvider(widget.playlistId)).load();
+  }
+
   Future<void> _deleteFromServer(Track track) async {
     final backend = ref.read(backendRepositoryProvider);
     final resultId = track.resultId;
@@ -231,7 +248,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       return;
     }
     try {
-      await backend.deleteTrack(resultId);
+      final result = await backend.deleteTrack(resultId);
       final updated = await ref
           .read(trackRepositoryProvider)
           .markServerRemoved(track);
@@ -245,7 +262,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           .read(appStartupControllerProvider)
           .refreshBackend(keepConnectedStatus: true);
       notifyLibraryChangedFromWidget(ref);
-      _showMessage('Deleted from server.');
+      _showMessage(result.message);
     } on ApiException catch (error) {
       _showMessage(error.message);
     } catch (_) {

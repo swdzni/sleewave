@@ -39,10 +39,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         .snapshot
         .currentTrack
         ?.id;
-    final sourceNames = {
-      for (final source in ref.watch(appStartupControllerProvider).sources)
-        source.id: source.name,
-    };
+    final onlineAvailable = ref
+        .watch(appStartupControllerProvider)
+        .status
+        .isConnected;
     return AppScaffold(
       safeBottom: false,
       child: ListView(
@@ -60,9 +60,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         SongCard(
                           track: track,
                           isPlaying: currentTrackId == track.id,
-                          sourceLabel: sourceNames[track.sourceId],
+                          onlineAvailable: onlineAvailable,
                           onTap: () => vm.play(track, queue: state.downloaded),
-                          onLongPress: () => _showTrackActions(track),
+                          onLongPress: () =>
+                              _showTrackActions(track, onlineAvailable),
                           onLike: () => _toggleLike(track),
                           onAddToPlaylist: () => _showAddToPlaylist(track),
                           onDelete: () => vm.deleteTrack(track),
@@ -80,9 +81,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         SongCard(
                           track: track,
                           isPlaying: currentTrackId == track.id,
-                          sourceLabel: sourceNames[track.sourceId],
+                          onlineAvailable: onlineAvailable,
                           onTap: () => vm.play(track, queue: state.imported),
-                          onLongPress: () => _showTrackActions(track),
+                          onLongPress: () =>
+                              _showTrackActions(track, onlineAvailable),
                           onLike: () => _toggleLike(track),
                           onAddToPlaylist: () => _showAddToPlaylist(track),
                           onDelete: () => vm.deleteTrack(track),
@@ -109,15 +111,22 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  void _showTrackActions(Track track) {
+  void _showTrackActions(Track track, bool onlineAvailable) {
+    final sourceNames = {
+      for (final source in ref.read(appStartupControllerProvider).sources)
+        source.id: source.name,
+    };
     showTrackActionsSheet(
       context: context,
       track: track,
+      sourceLabel: sourceNames[track.sourceId],
       onLike: () => _toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
       onDeleteLocal: () =>
           ref.read(libraryViewModelProvider).deleteTrack(track),
-      onDeleteFromServer: () => _deleteFromServer(track),
+      onDeleteFromServer: onlineAvailable
+          ? () => _deleteFromServer(track)
+          : null,
     );
   }
 
@@ -129,14 +138,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       return;
     }
     try {
-      await backend.deleteTrack(resultId);
+      final result = await backend.deleteTrack(resultId);
       await ref.read(trackRepositoryProvider).markServerRemoved(track);
       await ref
           .read(appStartupControllerProvider)
           .refreshBackend(keepConnectedStatus: true);
       notifyLibraryChangedFromWidget(ref);
       await ref.read(libraryViewModelProvider).load();
-      _showMessage('Deleted from server.');
+      _showMessage(result.message);
     } on ApiException catch (error) {
       _showMessage(error.message);
     } catch (_) {

@@ -42,7 +42,7 @@ void main() {
     await db.close();
   });
 
-  test('successful check saves the Online Library URL', () async {
+  test('successful save stores the Online Library URL', () async {
     final vm = SettingsViewModel(
       theme,
       startup,
@@ -59,7 +59,7 @@ void main() {
       refreshBackend: ({bool keepConnectedStatus = false}) async {},
     );
 
-    await vm.checkUrl(' http://127.0.0.1:8000/ ');
+    await vm.saveUrl(' http://127.0.0.1:8000/ ');
     final saved = await settingsRepository.load();
 
     expect(saved.backendBaseUrl, 'http://127.0.0.1:8000');
@@ -67,7 +67,7 @@ void main() {
     expect(vm.state.status.isConnected, isTrue);
   });
 
-  test('failed check leaves the stored Online Library URL unchanged', () async {
+  test('failed save leaves the stored Online Library URL unchanged', () async {
     await theme.saveSettings(
       theme.settings.copyWith(backendBaseUrl: 'http://old.test'),
     );
@@ -79,7 +79,7 @@ void main() {
       refreshBackend: ({bool keepConnectedStatus = false}) async {},
     );
 
-    await vm.checkUrl('http://new.test');
+    await vm.saveUrl('http://new.test');
     final saved = await settingsRepository.load();
 
     expect(saved.backendBaseUrl, 'http://old.test');

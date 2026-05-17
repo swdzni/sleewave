@@ -48,35 +48,6 @@ class PlaybackService extends SafeChangeNotifier {
         notifyListeners();
       }),
     );
-    _subscriptions.add(
-      _player.currentIndexStream.listen((index) {
-        if (index == null || index == _queue.index) {
-          return;
-        }
-        final oldIndex = _queue.index;
-        final oldPosition = _snapshot.position;
-        if (index == oldIndex - 1 && oldPosition > _restartThreshold) {
-          unawaited(_player.seek(Duration.zero, index: oldIndex));
-          _queue.jumpTo(oldIndex);
-          _snapshot = _snapshot.copyWith(position: Duration.zero);
-          notifyListeners();
-          return;
-        }
-        _queue.jumpTo(index);
-        final track = _queue.current;
-        if (track != null) {
-          _snapshot = _snapshot.copyWith(
-            currentTrack: track,
-            queue: _queue.queue,
-            error: null,
-          );
-          notifyListeners();
-          _scheduleRemoteControlsRefresh();
-          unawaited(_tracks.recordPlayed(track));
-          unawaited(_trimRecentlyPlayed());
-        }
-      }),
-    );
   }
 
   final TrackRepository _tracks;
@@ -109,9 +80,10 @@ class PlaybackService extends SafeChangeNotifier {
     _lastBackend = backend;
     _recentHistoryLimit = recentHistoryLimit;
     if (queue != null && queue.isNotEmpty) {
+      final startIndex = queue.indexWhere((item) => item.id == track.id);
       _queue.setQueue(
-        queue,
-        startIndex: queue.indexWhere((item) => item.id == track.id),
+        startIndex == -1 ? [...queue, track] : queue,
+        startIndex: startIndex == -1 ? queue.length : startIndex,
       );
     } else {
       _queue.setSingle(track);
@@ -125,6 +97,9 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> jumpToQueueIndex(int index, {BackendRepository? backend}) async {
     _lastBackend = backend ?? _lastBackend;
+    if (index == _queue.index) {
+      return;
+    }
     _queue.jumpTo(index);
     final track = _queue.current;
     if (track != null) {
@@ -263,15 +238,11 @@ class PlaybackService extends SafeChangeNotifier {
       if (_isStaleLoad(generation)) {
         return;
       }
-      final preparedQueue = await _prepareQueue(
-        track,
-        backend: backend,
-        queue: _queue.queue,
-      );
+      final source = await _audioSourceFor(track, backend: backend);
       if (_isStaleLoad(generation)) {
         return;
       }
-      if (preparedQueue == null) {
+      if (source == null) {
         _setPlaybackError(
           track,
           backend == null
@@ -280,13 +251,9 @@ class PlaybackService extends SafeChangeNotifier {
         );
         return;
       }
-      _queue.setQueue(preparedQueue.tracks, startIndex: preparedQueue.index);
       _snapshot = _snapshot.copyWith(queue: _queue.queue);
       notifyListeners();
-      await _player.setAudioSources(
-        preparedQueue.sources,
-        initialIndex: preparedQueue.index,
-      );
+      await _player.setAudioSource(source);
       if (_isStaleLoad(generation)) {
         return;
       }
@@ -376,44 +343,6 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> _trimRecentlyPlayed() {
     return _tracks.trimRecentlyPlayed(limit: _recentHistoryLimit);
-  }
-
-  Future<_PreparedQueue?> _prepareQueue(
-    Track target, {
-    required BackendRepository? backend,
-    required List<Track> queue,
-  }) async {
-    final tracks = <Track>[];
-    final sources = <AudioSource>[];
-    int? targetIndex;
-    for (final track in queue) {
-      final source = await _audioSourceFor(track, backend: backend);
-      if (source == null) {
-        if (track.id == target.id) {
-          return null;
-        }
-        continue;
-      }
-      if (track.id == target.id && targetIndex == null) {
-        targetIndex = sources.length;
-      }
-      tracks.add(track);
-      sources.add(source);
-    }
-    if (targetIndex == null) {
-      final source = await _audioSourceFor(target, backend: backend);
-      if (source == null) {
-        return null;
-      }
-      targetIndex = sources.length;
-      tracks.add(target);
-      sources.add(source);
-    }
-    return _PreparedQueue(
-      tracks: List.unmodifiable(tracks),
-      sources: sources,
-      index: targetIndex,
-    );
   }
 
   Future<AudioSource?> _audioSourceFor(
@@ -527,15 +456,3 @@ class PlaybackService extends SafeChangeNotifier {
 }
 
 const _activePlaylistSentinel = Object();
-
-class _PreparedQueue {
-  const _PreparedQueue({
-    required this.tracks,
-    required this.sources,
-    required this.index,
-  });
-
-  final List<Track> tracks;
-  final List<AudioSource> sources;
-  final int index;
-}

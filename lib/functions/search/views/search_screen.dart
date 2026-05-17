@@ -82,6 +82,7 @@ class SearchScreen extends ConsumerWidget {
               currentTrackId: currentTrackId,
               sourceNames: sourceNames,
               downloadProgress: downloadProgress,
+              onlineAvailable: state.hasBackend,
             ),
         ],
       ),

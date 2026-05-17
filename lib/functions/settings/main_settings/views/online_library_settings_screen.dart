@@ -58,7 +58,7 @@ class _OnlineLibrarySettingsScreenState
             clearingCache: state.clearingCache,
             clearingSongs: state.clearingSongs,
             httpWarning: state.httpWarning,
-            onCheck: () => vm.checkUrl(_urlController.text),
+            onCheck: () => vm.saveUrl(_urlController.text),
             onClear: () async {
               _urlController.clear();
               await vm.clear();

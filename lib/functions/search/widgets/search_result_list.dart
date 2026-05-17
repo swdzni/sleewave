@@ -18,6 +18,7 @@ class SearchResultList extends StatelessWidget {
     required this.currentTrackId,
     required this.sourceNames,
     required this.downloadProgress,
+    required this.onlineAvailable,
   });
 
   final List<Track> localMatches;
@@ -30,6 +31,7 @@ class SearchResultList extends StatelessWidget {
   final String? currentTrackId;
   final Map<String, String> sourceNames;
   final Map<String, double> downloadProgress;
+  final bool onlineAvailable;
 
   @override
   Widget build(BuildContext context) {
@@ -53,20 +55,23 @@ class SearchResultList extends StatelessWidget {
     return SongCard(
       track: track,
       isPlaying: currentTrackId == track.id,
-      sourceLabel: sourceNames[track.sourceId],
+      onlineAvailable: onlineAvailable,
       onTap: () => onPlay(track),
       onLongPress: () => showTrackActionsSheet(
         context: context,
         track: track,
+        sourceLabel: sourceNames[track.sourceId],
         onLike: () => onLike(track),
         onAddToPlaylist: () => _showAddToPlaylist(context, track),
-        onDownload: () => onDownload(track),
+        onDownload: onlineAvailable ? () => onDownload(track) : null,
         onDeleteLocal: () => onDelete(track),
-        onDeleteFromServer: () => onDeleteFromServer(track),
+        onDeleteFromServer: onlineAvailable
+            ? () => onDeleteFromServer(track)
+            : null,
       ),
       onLike: () => onLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(context, track),
-      onDownload: () => onDownload(track),
+      onDownload: onlineAvailable ? () => onDownload(track) : null,
       onDelete: () => onDelete(track),
       downloadProgress: downloadProgress[track.id],
     );
