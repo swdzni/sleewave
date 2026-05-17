@@ -70,8 +70,16 @@ class BackendRepository {
     }
   }
 
-  Future<Response<ResponseBody>> openStream(String resultId) {
-    return _apiClient.getStream(ApiPaths.stream(resultId));
+  Future<Response<ResponseBody>> openStream(
+    String resultId, {
+    int? start,
+    int? end,
+  }) {
+    final range = _rangeHeader(start, end);
+    return _apiClient.getStream(
+      ApiPaths.stream(resultId),
+      headers: range == null ? null : {'Range': range},
+    );
   }
 
   Future<DownloadResponse> downloadTrack({
@@ -141,5 +149,15 @@ class BackendRepository {
     }
     final match = RegExp('filename="([^"]+)"').firstMatch(header);
     return match?.group(1);
+  }
+
+  String? _rangeHeader(int? start, int? end) {
+    if (start == null && end == null) {
+      return null;
+    }
+    final safeStart = start == null ? '' : start.clamp(0, 1 << 62);
+    final inclusiveEnd = end == null ? null : end - 1;
+    final safeEnd = inclusiveEnd == null ? '' : inclusiveEnd.clamp(0, 1 << 62);
+    return 'bytes=$safeStart-$safeEnd';
   }
 }

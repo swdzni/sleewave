@@ -153,6 +153,20 @@ void main() {
     expect(sentOptions.path, '/stream/stable-track');
   });
 
+  test('stream sends HTTP range header when requested', () async {
+    late RequestOptions sentOptions;
+    final repository = _repository((options) {
+      sentOptions = options;
+      return ResponseBody.fromBytes(const [2, 3], 206);
+    });
+
+    await repository.openStream('stable-track', start: 2, end: 4);
+
+    expect(sentOptions.method, 'GET');
+    expect(sentOptions.path, '/stream/stable-track');
+    expect(sentOptions.headers['Range'], 'bytes=2-3');
+  });
+
   test('download fetches result ID with GET and device ID', () async {
     late RequestOptions sentOptions;
     final repository = _repository(

@@ -44,7 +44,9 @@ class PlaybackService extends SafeChangeNotifier {
     );
     _subscriptions.add(
       _player.durationStream.listen((duration) {
-        _snapshot = _snapshot.copyWith(duration: duration ?? Duration.zero);
+        _snapshot = _snapshot.copyWith(
+          duration: duration ?? _durationFor(_snapshot.currentTrack),
+        );
         notifyListeners();
       }),
     );
@@ -218,7 +220,7 @@ class PlaybackService extends SafeChangeNotifier {
       isPlaying: false,
       isBuffering: true,
       position: Duration.zero,
-      duration: Duration.zero,
+      duration: _durationFor(track),
       queue: _queue.queue,
       activePlaylistId: activePlaylistId == _activePlaylistSentinel
           ? _snapshot.activePlaylistId
@@ -343,6 +345,14 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> _trimRecentlyPlayed() {
     return _tracks.trimRecentlyPlayed(limit: _recentHistoryLimit);
+  }
+
+  Duration _durationFor(Track? track) {
+    final seconds = track?.durationSeconds;
+    if (seconds == null || seconds <= 0) {
+      return Duration.zero;
+    }
+    return Duration(seconds: seconds);
   }
 
   Future<AudioSource?> _audioSourceFor(

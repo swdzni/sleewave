@@ -76,6 +76,7 @@ class ApiClient {
   Future<Response<ResponseBody>> getStream(
     String path, {
     Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
     Duration? receiveTimeout,
   }) async {
     try {
@@ -84,6 +85,7 @@ class ApiClient {
         queryParameters: queryParameters,
         options: Options(
           responseType: ResponseType.stream,
+          headers: headers,
           receiveTimeout: receiveTimeout ?? const Duration(minutes: 5),
         ),
       );
