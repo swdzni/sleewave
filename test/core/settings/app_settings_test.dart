@@ -38,4 +38,12 @@ void main() {
       200,
     );
   });
+
+  test('share text is disabled by default and copyable', () {
+    final defaults = AppSettings.defaults();
+    final updated = defaults.copyWith(shareWithText: true);
+
+    expect(defaults.shareWithText, isFalse);
+    expect(updated.shareWithText, isTrue);
+  });
 }

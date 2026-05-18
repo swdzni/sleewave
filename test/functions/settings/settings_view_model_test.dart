@@ -99,6 +99,20 @@ void main() {
     expect(saved.recentHistoryLimit, 35);
     expect(vm.state.settings.recentHistoryLimit, 35);
   });
+
+  test('saves share text preference', () async {
+    final vm = SettingsViewModel(
+      theme,
+      startup,
+      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+    );
+
+    await vm.setShareWithText(true);
+    final saved = await settingsRepository.load();
+
+    expect(saved.shareWithText, isTrue);
+    expect(vm.state.settings.shareWithText, isTrue);
+  });
 }
 
 class _FakeBackendRepository extends BackendRepository {

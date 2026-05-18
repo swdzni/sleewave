@@ -156,6 +156,13 @@ class SettingsViewModel extends SafeChangeNotifier {
     _notifyLibraryChanged();
   }
 
+  Future<void> setShareWithText(bool enabled) async {
+    final settings = _theme.settings.copyWith(shareWithText: enabled);
+    await _theme.saveSettings(settings);
+    _state = _state.copyWith(settings: settings, message: 'Saved');
+    notifyListeners();
+  }
+
   Future<void> clear() async {
     final settings = _theme.settings.copyWith(
       backendBaseUrl: null,

@@ -12,6 +12,8 @@ import '../files/file_storage_service.dart';
 class TrackShareService {
   TrackShareService(this._storage);
 
+  static const shareText = 'Sent from Sleewave player';
+
   final FileStorageService _storage;
   final _uuid = const Uuid();
 
@@ -24,7 +26,7 @@ class TrackShareService {
     if (localPath != null && localPath.isNotEmpty) {
       final file = File(localPath);
       if (await file.exists()) {
-        await _shareFile(file, track);
+        await _shareFile(file, settings);
         return;
       }
     }
@@ -46,7 +48,7 @@ class TrackShareService {
         response.bytes,
         '${_uuid.v4()}-${_storage.sanitizeFilename(filename)}',
       );
-      await _shareFile(file, track);
+      await _shareFile(file, settings);
     } on ApiException {
       rethrow;
     } catch (_) {
@@ -54,12 +56,11 @@ class TrackShareService {
     }
   }
 
-  Future<void> _shareFile(File file, Track track) {
+  Future<void> _shareFile(File file, AppSettings settings) {
     return SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path, mimeType: 'audio/mpeg')],
-        subject: track.title,
-        text: '${track.displayArtist} - ${track.title}',
+        text: settings.shareWithText ? shareText : null,
       ),
     );
   }

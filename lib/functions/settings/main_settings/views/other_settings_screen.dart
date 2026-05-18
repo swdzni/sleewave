@@ -67,6 +67,14 @@ class _OtherSettingsScreenState extends ConsumerState<OtherSettingsScreen> {
             'Keep up to $limit tracks in play history.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          const SizedBox(height: 24),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Share with text'),
+            subtitle: const Text('Add "Sent from Sleewave player" to shares.'),
+            value: state.settings.shareWithText,
+            onChanged: vm.setShareWithText,
+          ),
           if (state.message != null) ...[
             const SizedBox(height: 16),
             Text(state.message!),

@@ -36,6 +36,7 @@ class AppSettings {
     this.selectedSourceIds = const [],
     this.searchLimit = AppConstants.defaultSearchLimit,
     int recentHistoryLimit = AppConstants.defaultRecentHistoryLimit,
+    this.shareWithText = false,
   }) : recentHistoryLimit = recentHistoryLimit.clamp(
          AppConstants.minRecentHistoryLimit,
          AppConstants.maxRecentHistoryLimit,
@@ -52,6 +53,7 @@ class AppSettings {
   final List<String> selectedSourceIds;
   final int searchLimit;
   final int recentHistoryLimit;
+  final bool shareWithText;
 
   static String generateDeviceId({Random? random}) {
     final source = random ?? Random.secure();
@@ -113,6 +115,7 @@ class AppSettings {
     List<String>? selectedSourceIds,
     int? searchLimit,
     int? recentHistoryLimit,
+    bool? shareWithText,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -124,6 +127,7 @@ class AppSettings {
       selectedSourceIds: selectedSourceIds ?? this.selectedSourceIds,
       searchLimit: searchLimit ?? this.searchLimit,
       recentHistoryLimit: recentHistoryLimit ?? this.recentHistoryLimit,
+      shareWithText: shareWithText ?? this.shareWithText,
     );
   }
 }

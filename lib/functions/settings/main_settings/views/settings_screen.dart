@@ -93,7 +93,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _SettingsRow(
                 icon: Icons.history_rounded,
                 title: 'Recently played',
-                subtitle: '${state.settings.recentHistoryLimit} tracks',
+                subtitle:
+                    '${state.settings.recentHistoryLimit} tracks · Share text ${state.settings.shareWithText ? 'on' : 'off'}',
                 onTap: () => context.push('/settings/other'),
               ),
             ],
