@@ -36,6 +36,8 @@ class HomeCollectionScreen extends ConsumerStatefulWidget {
 class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
   List<Track> _tracks = const [];
   bool _loading = true;
+  bool _deletingAllFromServer = false;
+  bool _downloadingAllFromServer = false;
 
   @override
   void initState() {
@@ -84,6 +86,52 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          if (widget.kind == HomeCollectionKind.server) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed:
+                      _loading ||
+                          !onlineAvailable ||
+                          _tracks.isEmpty ||
+                          _deletingAllFromServer ||
+                          _downloadingAllFromServer
+                      ? null
+                      : _confirmDeleteAllFromServer,
+                  icon: _deletingAllFromServer
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_sweep_rounded),
+                  label: const Text('Delete all from server'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed:
+                      _loading ||
+                          !onlineAvailable ||
+                          _tracks.isEmpty ||
+                          _deletingAllFromServer ||
+                          _downloadingAllFromServer
+                      ? null
+                      : _downloadAllFromServer,
+                  icon: _downloadingAllFromServer
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_rounded),
+                  label: const Text('Download all from server'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
           if (_tracks.isEmpty && !_loading)
             EmptyState(title: 'No tracks yet.')
           else
@@ -248,6 +296,139 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
     } catch (_) {
       _showMessage('Could not delete from server.');
     }
+  }
+
+  Future<void> _confirmDeleteAllFromServer() async {
+    final clear = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete all from server?'),
+        content: const Text(
+          'This clears server cached MP3s, the track catalog, and device-library records.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+    if (clear == true) {
+      await _deleteAllFromServer();
+    }
+  }
+
+  Future<void> _deleteAllFromServer() async {
+    final backend = ref.read(backendRepositoryProvider);
+    if (backend == null) {
+      _showMessage('Connect Online Library first.');
+      return;
+    }
+    setState(() => _deletingAllFromServer = true);
+    try {
+      final result = await backend.clearServerTemp();
+      await ref.read(trackRepositoryProvider).markAllServerRemoved();
+      await ref
+          .read(appStartupControllerProvider)
+          .refreshBackend(keepConnectedStatus: true);
+      notifyLibraryChangedFromWidget(ref);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _tracks = const [];
+        _deletingAllFromServer = false;
+      });
+      _showMessage(result.message('server files'));
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _deletingAllFromServer = false);
+      }
+      _showMessage(error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _deletingAllFromServer = false);
+      }
+      _showMessage('Could not delete server songs.');
+    }
+  }
+
+  Future<void> _downloadAllFromServer() async {
+    final backend = ref.read(backendRepositoryProvider);
+    if (backend == null) {
+      _showMessage('Connect Online Library to download.');
+      return;
+    }
+    setState(() => _downloadingAllFromServer = true);
+    var downloaded = 0;
+    var skipped = 0;
+    var failed = 0;
+    try {
+      final settings = ref.read(themeControllerProvider).settings;
+      final downloadService = ref.read(downloadServiceProvider);
+      for (final track in List<Track>.of(_tracks)) {
+        if (!mounted) {
+          return;
+        }
+        if (track.isLocalPlayable) {
+          skipped++;
+          continue;
+        }
+        try {
+          final updated = await downloadService.download(
+            track: track,
+            backend: backend,
+            settings: settings,
+          );
+          if (updated == null) {
+            skipped++;
+          } else {
+            downloaded++;
+            _replaceTrack(updated);
+          }
+        } on ApiException {
+          failed++;
+        } catch (_) {
+          failed++;
+        }
+      }
+      notifyLibraryChangedFromWidget(ref);
+      await ref
+          .read(appStartupControllerProvider)
+          .refreshBackend(keepConnectedStatus: true);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _downloadingAllFromServer = false);
+      _showMessage(_downloadAllMessage(downloaded, skipped, failed));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _downloadingAllFromServer = false);
+      }
+      _showMessage('Could not download all server songs.');
+    }
+  }
+
+  String _downloadAllMessage(int downloaded, int skipped, int failed) {
+    final parts = <String>[];
+    if (downloaded > 0) {
+      parts.add('Downloaded $downloaded');
+    }
+    if (skipped > 0) {
+      parts.add('Skipped $skipped');
+    }
+    if (failed > 0) {
+      parts.add('Failed $failed');
+    }
+    if (parts.isEmpty) {
+      return 'No server songs to download.';
+    }
+    return '${parts.join(', ')}.';
   }
 
   void _replaceTrack(Track updated) {

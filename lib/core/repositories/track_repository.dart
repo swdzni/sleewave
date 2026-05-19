@@ -304,6 +304,15 @@ class TrackRepository {
     return null;
   }
 
+  Future<void> markAllServerRemoved() async {
+    final rows = await (_db.select(
+      _db.tracks,
+    )..where((table) => table.inServerCache.equals(true))).get();
+    for (final row in rows) {
+      await markServerRemoved(_fromRow(row));
+    }
+  }
+
   Future<void> removeMissingLocalPaths() async {
     final rows = await (_db.select(
       _db.tracks,

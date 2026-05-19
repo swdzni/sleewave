@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sleewave/core/constants/app_constants.dart';
 import 'package:sleewave/core/database/app_database.dart';
 import 'package:sleewave/core/models/track.dart';
+import 'package:sleewave/core/models/track_availability.dart';
 import 'package:sleewave/core/repositories/track_repository.dart';
 
 void main() {
@@ -156,5 +157,41 @@ void main() {
     expect((await tracks.byId('played-0'))!.lastPlayedAt, isNull);
     expect((await tracks.byId('played-1'))!.lastPlayedAt, isNull);
     expect((await tracks.byId('played-2'))!.lastPlayedAt, isNotNull);
+  });
+
+  test('marks all server cached tracks removed', () async {
+    final now = DateTime(2026);
+    await tracks.upsert(
+      Track(
+        id: 'server-only',
+        title: 'Server Only',
+        resultId: 'server-only',
+        availability: const TrackAvailability(inServerCache: true),
+        localOrigin: AppConstants.localOriginServerCached,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await tracks.upsert(
+      Track(
+        id: 'local-copy',
+        title: 'Local Copy',
+        resultId: 'local-copy',
+        localPath: '/tmp/local-copy.mp3',
+        localOrigin: AppConstants.localOriginDownloaded,
+        availability: const TrackAvailability(inServerCache: true),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await tracks.markAllServerRemoved();
+
+    expect(await tracks.byId('server-only'), isNull);
+    final local = await tracks.byId('local-copy');
+    expect(local, isNotNull);
+    expect(local!.resultId, isNull);
+    expect(local.isServerCached, isFalse);
+    expect(local.localPath, '/tmp/local-copy.mp3');
   });
 }
