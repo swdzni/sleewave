@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/source_info.dart';
+import '../../../core/theme/app_colors.dart';
 
-class SourceChipBar extends StatelessWidget {
+class SourceChipBar extends StatefulWidget {
   const SourceChipBar({
     super.key,
     required this.sources,
@@ -17,82 +18,73 @@ class SourceChipBar extends StatelessWidget {
   final VoidCallback onSelectAll;
 
   @override
+  State<SourceChipBar> createState() => _SourceChipBarState();
+}
+
+class _SourceChipBarState extends State<SourceChipBar> {
+  bool _expanded = true;
+
+  @override
   Widget build(BuildContext context) {
-    if (sources.isEmpty) {
+    if (widget.sources.isEmpty) {
       return const SizedBox.shrink();
     }
-    final visibleSources = sources.take(3).toList();
-    final hiddenSources = sources.skip(3).toList();
-    final allSelected = selectedSourceIds.isEmpty;
-    return SizedBox(
-      height: 42,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: const Text('All'),
-              selected: allSelected,
-              onSelected: (_) => onSelectAll(),
-            ),
-          ),
-          for (final source in visibleSources)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _SourceChip(
-                source: source,
-                selected: selectedSourceIds.contains(source.id),
-                onToggle: onToggle,
-              ),
-            ),
-          if (hiddenSources.isNotEmpty)
-            ActionChip(
-              avatar: const Icon(Icons.more_horiz_rounded, size: 16),
-              label: const Text('More'),
-              onPressed: () => _showAllSources(context),
-            ),
-        ],
+    final allSelected = widget.selectedSourceIds.isEmpty;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.palette.surface.withValues(alpha: 0.56),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.palette.border),
       ),
-    );
-  }
-
-  void _showAllSources(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            children: [
-              Text('Sources', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                value: selectedSourceIds.isEmpty,
-                title: const Text('All'),
-                onChanged: (_) {
-                  Navigator.pop(context);
-                  onSelectAll();
-                },
-              ),
-              for (final source in sources)
-                CheckboxListTile(
-                  value: selectedSourceIds.contains(source.id),
-                  enabled: source.canSearch,
-                  title: Text(source.name),
-                  subtitle: source.canSearch ? null : const Text('Unavailable'),
-                  onChanged: (_) {
-                    Navigator.pop(context);
-                    onToggle(source.id);
-                  },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Text(
+                      'Sources',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                    ),
+                  ],
                 ),
+              ),
+            ),
+            if (_expanded) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('All'),
+                    selected: allSelected,
+                    onSelected: (_) => widget.onSelectAll(),
+                  ),
+                  for (final source in widget.sources)
+                    _SourceChip(
+                      source: source,
+                      selected: widget.selectedSourceIds.contains(source.id),
+                      onToggle: widget.onToggle,
+                    ),
+                ],
+              ),
             ],
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
@@ -110,13 +102,25 @@ class _SourceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unavailable = !source.canSearch;
     return FilterChip(
-      label: Text(source.name),
+      label: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(source.name),
+          if (unavailable)
+            Text(
+              'Unavailable',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: context.palette.secondaryText,
+              ),
+            ),
+        ],
+      ),
       selected: selected,
-      onSelected: source.canSearch ? (_) => onToggle(source.id) : null,
-      avatar: source.canSearch
-          ? null
-          : const Icon(Icons.block_rounded, size: 16),
+      onSelected: unavailable ? null : (_) => onToggle(source.id),
+      avatar: unavailable ? const Icon(Icons.block_rounded, size: 16) : null,
     );
   }
 }

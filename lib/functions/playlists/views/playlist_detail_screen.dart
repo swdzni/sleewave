@@ -111,6 +111,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 onlineAvailable: onlineAvailable,
                 onTap: () => vm.playFrom(track),
                 onLongPress: () => _showTrackActions(track, onlineAvailable),
+                onLike: () => vm.toggleLike(track),
+                onAddToPlaylist: () => _showAddToPlaylist(track),
+                onDownload: onlineAvailable
+                    ? () => _downloadTrack(track)
+                    : null,
+                onDelete: () => _deleteLocalState(track),
                 downloadProgress: downloadProgress[track.id],
               ),
         ],

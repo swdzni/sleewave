@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/cover_art.dart';
 import '../view_models/player_view_model.dart';
+import 'player_track_actions.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -24,6 +25,8 @@ class MiniPlayer extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: GestureDetector(
           onTap: () => context.push('/player'),
+          onLongPress: () =>
+              showPlayerTrackActions(context: context, ref: ref, track: track),
           onVerticalDragEnd: (details) {
             if ((details.primaryVelocity ?? 0) < -120) {
               context.push('/player');

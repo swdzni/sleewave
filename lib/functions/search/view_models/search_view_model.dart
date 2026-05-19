@@ -43,6 +43,9 @@ class SearchViewModel extends SafeChangeNotifier {
   final Ref _ref;
   Timer? _debounce;
   CancelToken? _cancelToken;
+  _SearchKey? _lastExecutedSearch;
+  bool _lastSearchMissedBackend = false;
+  int? _ignoredLibraryRevision;
   SearchState _state = const SearchState();
 
   SearchState get state => _state;
@@ -53,8 +56,8 @@ class SearchViewModel extends SafeChangeNotifier {
         .where((source) => source.canSearch)
         .map((source) => source.id)
         .toList();
-    final savedSelected = _theme.settings.selectedSourceIds
-        .where(searchableIds.contains)
+    final savedSelected = searchableIds
+        .where(_theme.settings.selectedSourceIds.contains)
         .toList();
     final selected = savedSelected.length == searchableIds.length
         ? const <String>[]
@@ -74,18 +77,21 @@ class SearchViewModel extends SafeChangeNotifier {
         _state.query.trim().isNotEmpty &&
         !previousStatus.isConnected &&
         _startup.status.isConnected) {
-      await searchNow();
+      await searchNow(force: true);
     }
   }
 
   void setQuery(String query) {
+    if (query == _state.query) {
+      return;
+    }
     _state = _state.copyWith(query: query, error: null);
     notifyListeners();
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), searchNow);
+    _debounce = Timer(const Duration(milliseconds: 1500), () => searchNow());
   }
 
-  void toggleSource(String sourceId) {
+  Future<void> toggleSource(String sourceId) async {
     final source = _state.availableSources
         .where((candidate) => candidate.id == sourceId)
         .firstOrNull;
@@ -100,21 +106,33 @@ class SearchViewModel extends SafeChangeNotifier {
     } else {
       selected.add(sourceId);
     }
-    _state = _state.copyWith(selectedSourceIds: selected);
+    final normalizedSelected = _normalizeSelectedSources(selected);
+    _state = _state.copyWith(selectedSourceIds: normalizedSelected);
+    await _saveSelectedSources(normalizedSelected);
     notifyListeners();
-    searchNow();
+    if (_state.query.trim().isNotEmpty) {
+      await searchNow(force: true);
+    }
   }
 
-  void selectAllSources() {
+  Future<void> selectAllSources() async {
+    if (_state.selectedSourceIds.isEmpty) {
+      return;
+    }
     _state = _state.copyWith(selectedSourceIds: const []);
+    await _saveSelectedSources(const []);
     notifyListeners();
-    searchNow();
+    if (_state.query.trim().isNotEmpty) {
+      await searchNow(force: true);
+    }
   }
 
-  Future<void> searchNow() async {
+  Future<void> searchNow({bool force = false}) async {
+    _debounce?.cancel();
     _cancelToken?.cancel();
     final query = _state.query.trim();
     if (query.isEmpty) {
+      _lastExecutedSearch = null;
       _state = _state.copyWith(
         localMatches: const [],
         streamedResults: const [],
@@ -124,6 +142,13 @@ class SearchViewModel extends SafeChangeNotifier {
       notifyListeners();
       return;
     }
+    final searchKey = _SearchKey(query, _state.effectiveSourceIds());
+    final canRecoverBackendSearch =
+        force && _lastSearchMissedBackend && _startup.status.isConnected;
+    if (searchKey == _lastExecutedSearch && !canRecoverBackendSearch) {
+      return;
+    }
+    _lastExecutedSearch = searchKey;
     final local = await _tracks.searchLocal(query);
     _state = _state.copyWith(
       localMatches: local,
@@ -136,11 +161,12 @@ class SearchViewModel extends SafeChangeNotifier {
 
     final backend = _ref.read(backendRepositoryProvider);
     if (backend == null || !_startup.status.isConnected) {
+      _lastSearchMissedBackend = true;
       _state = _state.copyWith(isSearching: false, error: null);
       notifyListeners();
       return;
     }
-    final sourceIds = _state.effectiveSourceIds();
+    _lastSearchMissedBackend = false;
     _cancelToken = CancelToken();
     _state = _state.copyWith(isSearching: true);
     notifyListeners();
@@ -148,7 +174,7 @@ class SearchViewModel extends SafeChangeNotifier {
       _loadSavedSongsFirst(query);
       await for (final event in backend.search(
         query: query,
-        sourceIds: sourceIds,
+        sourceIds: searchKey.sourceIds,
         limit: _theme.settings.searchLimit,
         deviceId: _theme.settings.deviceId,
         cancelToken: _cancelToken,
@@ -180,6 +206,7 @@ class SearchViewModel extends SafeChangeNotifier {
       final message = error is ApiException
           ? error.message
           : 'Online Library search failed.';
+      _lastSearchMissedBackend = true;
       _state = _state.copyWith(
         isSearching: false,
         error: _state.localMatches.isEmpty ? message : null,
@@ -228,6 +255,8 @@ class SearchViewModel extends SafeChangeNotifier {
         );
       }
       _state = _state.copyWith(error: null);
+      _ignoredLibraryRevision =
+          _ref.read(libraryRevisionProvider.notifier).state + 1;
       notifyLibraryChanged(_ref);
       notifyListeners();
     } on ApiException catch (error) {
@@ -241,7 +270,18 @@ class SearchViewModel extends SafeChangeNotifier {
 
   Future<void> deleteTrack(Track track) async {
     await _tracks.deleteLocalState(track);
+    final updated = await _tracks.byId(track.id);
+    _state = updated == null
+        ? _state.copyWith(
+            localMatches: _removeTrack(_state.localMatches, track),
+            streamedResults: _removeTrack(_state.streamedResults, track),
+          )
+        : _state.copyWith(
+            localMatches: _replaceTrack(_state.localMatches, updated),
+            streamedResults: _replaceTrack(_state.streamedResults, updated),
+          );
     notifyLibraryChanged(_ref);
+    notifyListeners();
   }
 
   Future<void> shareTrack(Track track) async {
@@ -310,6 +350,22 @@ class SearchViewModel extends SafeChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshVisibleTracks() async {
+    _state = _state.copyWith(
+      localMatches: await _hydrateVisibleTracks(_state.localMatches),
+      streamedResults: await _hydrateVisibleTracks(_state.streamedResults),
+    );
+    notifyListeners();
+  }
+
+  bool shouldIgnoreLibraryRevision(int? previous, int next) {
+    if (_ignoredLibraryRevision == next) {
+      _ignoredLibraryRevision = null;
+      return true;
+    }
+    return false;
+  }
+
   void _loadSavedSongsFirst(String query) {
     for (final song in _startup.savedSongs.where(
       (track) => _matchesQuery(track, query),
@@ -344,6 +400,32 @@ class SearchViewModel extends SafeChangeNotifier {
     ];
   }
 
+  Future<List<Track>> _hydrateVisibleTracks(List<Track> tracks) async {
+    final hydrated = <Track>[];
+    for (final track in tracks) {
+      hydrated.add(await _tracks.byId(track.id) ?? track);
+    }
+    return hydrated;
+  }
+
+  Future<void> _saveSelectedSources(List<String> selected) async {
+    await _theme.saveSettings(
+      _theme.settings.copyWith(selectedSourceIds: selected),
+    );
+  }
+
+  List<String> _normalizeSelectedSources(List<String> selected) {
+    final searchableIds = _state.availableSources
+        .where((source) => source.canSearch)
+        .map((source) => source.id)
+        .toList();
+    final normalized = [
+      for (final id in searchableIds)
+        if (selected.contains(id)) id,
+    ];
+    return normalized.length == searchableIds.length ? const [] : normalized;
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -369,9 +451,32 @@ final searchViewModelProvider =
         vm.refreshFromStartup(rerunSearch: next.status.isConnected);
       });
       ref.listen<int>(libraryRevisionProvider, (previous, next) {
+        if (vm.shouldIgnoreLibraryRevision(previous, next)) {
+          return;
+        }
         if (vm.state.query.trim().isNotEmpty) {
-          vm.searchNow();
+          vm.refreshVisibleTracks();
         }
       });
       return vm;
     });
+
+class _SearchKey {
+  _SearchKey(String query, List<String> sourceIds)
+    : query = query.trim(),
+      sourceIds = List.unmodifiable(sourceIds);
+
+  final String query;
+  final List<String> sourceIds;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _SearchKey &&
+        other.query == query &&
+        const ListEquality<String>().equals(other.sourceIds, sourceIds);
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(query, const ListEquality<String>().hash(sourceIds));
+}

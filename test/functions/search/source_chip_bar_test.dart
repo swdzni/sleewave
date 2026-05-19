@@ -6,10 +6,11 @@ import 'package:sleewave/core/theme/app_theme.dart';
 import 'package:sleewave/functions/search/widgets/source_chip_bar.dart';
 
 void main() {
-  testWidgets('shows All and collapses extra sources behind More', (
+  testWidgets('shows all sources inline and toggles selections', (
     tester,
   ) async {
     var selectedAll = false;
+    String? toggled;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.fromMode(SleewaveThemeMode.dark),
@@ -20,9 +21,10 @@ void main() {
               _source('b', 'B'),
               _source('c', 'C'),
               _source('d', 'D'),
+              _source('e', 'E', available: false),
             ],
             selectedSourceIds: const [],
-            onToggle: (_) {},
+            onToggle: (id) => toggled = id,
             onSelectAll: () => selectedAll = true,
           ),
         ),
@@ -30,18 +32,26 @@ void main() {
     );
 
     expect(find.text('All'), findsOneWidget);
-    expect(find.text('More'), findsOneWidget);
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget);
+    expect(find.text('C'), findsOneWidget);
+    expect(find.text('D'), findsOneWidget);
+    expect(find.text('More'), findsNothing);
+    expect(find.text('Unavailable'), findsOneWidget);
 
     await tester.tap(find.text('All'));
     expect(selectedAll, isTrue);
+
+    await tester.tap(find.text('B'));
+    expect(toggled, 'b');
   });
 }
 
-SourceInfo _source(String id, String name) {
+SourceInfo _source(String id, String name, {bool available = true}) {
   return SourceInfo(
     id: id,
     name: name,
-    available: true,
+    available: available,
     supportsSearch: true,
     supportsStream: true,
     supportsDownload: true,

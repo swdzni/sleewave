@@ -43,6 +43,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         .watch(appStartupControllerProvider)
         .status
         .isConnected;
+    final downloadProgress = ref.watch(downloadServiceProvider).progress;
     return AppScaffold(
       safeBottom: false,
       child: ListView(
@@ -66,7 +67,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                               _showTrackActions(track, onlineAvailable),
                           onLike: () => _toggleLike(track),
                           onAddToPlaylist: () => _showAddToPlaylist(track),
+                          onDownload: onlineAvailable
+                              ? () => _downloadTrack(track)
+                              : null,
                           onDelete: () => vm.deleteTrack(track),
+                          downloadProgress: downloadProgress[track.id],
                         ),
                     ],
                   ),
@@ -87,7 +92,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                               _showTrackActions(track, onlineAvailable),
                           onLike: () => _toggleLike(track),
                           onAddToPlaylist: () => _showAddToPlaylist(track),
+                          onDownload: onlineAvailable
+                              ? () => _downloadTrack(track)
+                              : null,
                           onDelete: () => vm.deleteTrack(track),
+                          downloadProgress: downloadProgress[track.id],
                         ),
                     ],
                   ),
@@ -122,6 +131,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       sourceLabel: sourceNames[track.sourceId],
       onLike: () => _toggleLike(track),
       onAddToPlaylist: () => _showAddToPlaylist(track),
+      onDownload: onlineAvailable ? () => _downloadTrack(track) : null,
       onShare: () => _shareTrack(track),
       onDeleteLocal: () =>
           ref.read(libraryViewModelProvider).deleteTrack(track),
@@ -129,6 +139,35 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ? () => _deleteFromServer(track)
           : null,
     );
+  }
+
+  Future<void> _downloadTrack(Track track) async {
+    final backend = ref.read(backendRepositoryProvider);
+    if (backend == null) {
+      _showMessage('Connect Online Library to download.');
+      return;
+    }
+    if (track.resultId == null) {
+      _showMessage('Refresh this track before download.');
+      return;
+    }
+    try {
+      final updated = await ref
+          .read(downloadServiceProvider)
+          .download(
+            track: track,
+            backend: backend,
+            settings: ref.read(themeControllerProvider).settings,
+          );
+      if (updated != null) {
+        notifyLibraryChangedFromWidget(ref);
+        await ref.read(libraryViewModelProvider).load();
+      }
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Download failed. Try again.');
+    }
   }
 
   Future<void> _deleteFromServer(Track track) async {

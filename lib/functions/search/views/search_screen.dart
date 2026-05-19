@@ -37,7 +37,7 @@ class SearchScreen extends ConsumerWidget {
           CupertinoSearchTextField(
             placeholder: 'Search for artists, tracks...',
             onChanged: vm.setQuery,
-            onSubmitted: (_) => vm.searchNow(),
+            onSubmitted: (_) => vm.searchNow(force: true),
           ),
           const SizedBox(height: 12),
           SourceChipBar(

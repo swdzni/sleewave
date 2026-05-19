@@ -8,6 +8,7 @@ import '../../../core/widgets/cover_art.dart';
 import '../../../core/widgets/track_badges.dart';
 import '../view_models/player_view_model.dart';
 import '../widgets/player_controls.dart';
+import '../widgets/player_track_actions.dart';
 import '../widgets/swipe_dismiss_layer.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
@@ -87,18 +88,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     : context.palette.secondaryText,
                               ),
                             ),
+                            IconButton(
+                              tooltip: 'More',
+                              onPressed: () => showPlayerTrackActions(
+                                context: context,
+                                ref: ref,
+                                track: track,
+                              ),
+                              icon: const Icon(Icons.more_horiz_rounded),
+                            ),
                           ],
                         ),
                         Expanded(
                           flex: 5,
                           child: Center(
-                            child: Hero(
-                              tag: 'cover-${track.id}',
-                              child: CoverArt(
-                                coverUrl: track.coverUrl,
-                                localCoverPath: track.localCoverPath,
-                                size: 300,
-                                borderRadius: 18,
+                            child: GestureDetector(
+                              onLongPress: () => showPlayerTrackActions(
+                                context: context,
+                                ref: ref,
+                                track: track,
+                              ),
+                              child: Hero(
+                                tag: 'cover-${track.id}',
+                                child: CoverArt(
+                                  coverUrl: track.coverUrl,
+                                  localCoverPath: track.localCoverPath,
+                                  size: 300,
+                                  borderRadius: 18,
+                                ),
                               ),
                             ),
                           ),

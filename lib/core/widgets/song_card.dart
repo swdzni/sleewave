@@ -163,14 +163,14 @@ class SongCard extends StatelessWidget {
                           : context.palette.secondaryText,
                     ),
                   ),
-                if (!compact && onAddToPlaylist != null)
+                if (onAddToPlaylist != null)
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Add to playlist',
                     onPressed: onAddToPlaylist,
                     icon: const Icon(Icons.playlist_add_rounded),
                   ),
-                if (!compact && onRemoveFromPlaylist != null)
+                if (onRemoveFromPlaylist != null)
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     tooltip: 'Remove from playlist',

@@ -159,6 +159,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         onLongPress: () =>
                             _showTrackActions(track, onlineAvailable),
                         onLike: () => _toggleLike(track),
+                        onAddToPlaylist: () => _showAddToPlaylist(track),
                         onDownload: onlineAvailable
                             ? () => _downloadTrack(track)
                             : null,
@@ -195,6 +196,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onDownload: onlineAvailable
                                   ? () => _downloadTrack(track)
                                   : null,
+                              onDelete: () => _deleteLocalState(track),
                               downloadProgress: downloadProgress[track.id],
                             ),
                         ],

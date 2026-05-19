@@ -18,21 +18,27 @@ void main() {
     expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
   });
 
-  testWidgets('shows availability badge and playlist action on normal rows', (
+  testWidgets('shows core row details and actions on normal rows', (
     tester,
   ) async {
     await tester.pumpWidget(
       _wrap(
         SongCard(
-          track: _track(resultId: 'result-1'),
+          track: _track(resultId: 'result-1', durationSeconds: 184),
+          onLike: () {},
           onAddToPlaylist: () {},
+          onDownload: () {},
         ),
       ),
     );
 
+    expect(find.text('Track One'), findsOneWidget);
+    expect(find.text('Artist'), findsOneWidget);
     expect(find.text('Remote'), findsOneWidget);
-    expect(find.text('Source A'), findsNothing);
+    expect(find.text('3:04'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
     expect(find.byIcon(Icons.playlist_add_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.download_rounded), findsOneWidget);
   });
 
   testWidgets('does not overflow in a narrow row with multiple badges', (
@@ -60,7 +66,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('hides playlist action on compact rows', (tester) async {
+  testWidgets('shows playlist action on compact rows', (tester) async {
     await tester.pumpWidget(
       _wrap(
         SongCard(
@@ -71,7 +77,24 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.playlist_add_rounded), findsNothing);
+    expect(find.byIcon(Icons.playlist_add_rounded), findsOneWidget);
+  });
+
+  testWidgets('shows progress instead of transfer icon while downloading', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        SongCard(
+          track: _track(resultId: 'result-1'),
+          onDownload: () {},
+          downloadProgress: 0.5,
+        ),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byIcon(Icons.download_rounded), findsNothing);
   });
 
   testWidgets(
