@@ -6,6 +6,8 @@ import '../../../core/app_startup_controller.dart';
 import '../../../core/models/track.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
@@ -94,16 +96,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           playbackSnapshot.activePlaylistId == playlist.id;
                       return InkWell(
                         onTap: () => context.push('/playlists/${playlist.id}'),
+                        borderRadius: BorderRadius.circular(AppRadii.row),
                         child: Container(
                           width: 160,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(8),
+                            color: active
+                                ? context.palette.accentSoft
+                                : context.palette.surface,
+                            borderRadius: BorderRadius.circular(AppRadii.row),
                             border: Border.all(
                               color: active
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.transparent,
+                                  ? context.palette.strongBorder
+                                  : context.palette.border,
                             ),
                           ),
                           child: Column(

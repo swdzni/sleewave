@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/cover_art.dart';
+import '../../../core/widgets/now_playing_bars.dart';
 import '../view_models/player_view_model.dart';
 import 'player_track_actions.dart';
 
@@ -24,9 +27,14 @@ class MiniPlayer extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: GestureDetector(
-          onTap: () => context.push('/player'),
-          onLongPress: () =>
-              showPlayerTrackActions(context: context, ref: ref, track: track),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            context.push('/player');
+          },
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            showPlayerTrackActions(context: context, ref: ref, track: track);
+          },
           onVerticalDragEnd: (details) {
             if ((details.primaryVelocity ?? 0) < -120) {
               context.push('/player');
@@ -41,12 +49,21 @@ class MiniPlayer extends ConsumerWidget {
             }
           },
           child: Container(
-            height: 68,
+            height: AppSizes.miniPlayer,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: context.palette.surface.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(8),
+              color: context.palette.elevated.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(AppRadii.floating),
               border: Border.all(color: context.palette.border),
+              boxShadow: context.palette.shadow.a == 0
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: context.palette.shadow,
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
@@ -54,7 +71,7 @@ class MiniPlayer extends ConsumerWidget {
                   coverUrl: track.coverUrl,
                   localCoverPath: track.localCoverPath,
                   size: 50,
-                  borderRadius: 8,
+                  borderRadius: 14,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -77,6 +94,11 @@ class MiniPlayer extends ConsumerWidget {
                     ],
                   ),
                 ),
+                NowPlayingBars(
+                  color: context.palette.accent,
+                  playing: snapshot.isPlaying,
+                ),
+                const SizedBox(width: 6),
                 IconButton(
                   tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
                   onPressed: snapshot.isBuffering ? null : vm.togglePlayPause,

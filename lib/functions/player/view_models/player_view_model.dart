@@ -32,13 +32,10 @@ class PlayerViewModel extends SafeChangeNotifier {
     if (!_isPlayable(track, connected)) {
       return;
     }
-    final playableQueue = queue
-        ?.where((track) => _isPlayable(track, connected))
-        .toList(growable: false);
     await _playback.playTrack(
       track,
       backend: _ref.read(backendRepositoryProvider),
-      queue: playableQueue,
+      queue: queue,
       activePlaylistId: activePlaylistId,
       recentHistoryLimit: _ref
           .read(themeControllerProvider)

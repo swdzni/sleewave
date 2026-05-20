@@ -1,8 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_tokens.dart';
 
 class GlassTabItem {
   const GlassTabItem({
@@ -33,17 +35,22 @@ class GlassTabBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          0,
+          AppSpacing.screen,
+          12,
+        ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(AppRadii.floating),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
               height: 62,
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: context.palette.surface.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(28),
+                color: context.palette.elevated.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(AppRadii.floating),
                 border: Border.all(color: context.palette.border),
               ),
               child: LayoutBuilder(
@@ -52,18 +59,18 @@ class GlassTabBar extends StatelessWidget {
                   return Stack(
                     children: [
                       AnimatedPositioned(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOutCubic,
+                        duration: AppDurations.state,
+                        curve: AppCurves.standard,
                         left: itemWidth * currentIndex,
                         top: 0,
                         bottom: 0,
                         width: itemWidth,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            color: context.palette.accent.withValues(
-                              alpha: 0.22,
+                            color: context.palette.accentSoft,
+                            borderRadius: BorderRadius.circular(
+                              AppRadii.control,
                             ),
-                            borderRadius: BorderRadius.circular(22),
                           ),
                         ),
                       ),
@@ -109,11 +116,15 @@ class _TabButton extends StatelessWidget {
       selected: active,
       label: item.semanticLabel,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 250),
-          scale: active ? 1.04 : 1,
+          duration: AppDurations.state,
+          curve: AppCurves.standard,
+          scale: active ? 1.02 : 1,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -125,7 +136,7 @@ class _TabButton extends StatelessWidget {
                     : context.palette.secondaryText,
               ),
               AnimatedOpacity(
-                duration: const Duration(milliseconds: 250),
+                duration: AppDurations.state,
                 opacity: active ? 1 : 0.62,
                 child: Text(
                   item.label,

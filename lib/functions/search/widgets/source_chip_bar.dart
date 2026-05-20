@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/models/source_info.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 
 class SourceChipBar extends StatefulWidget {
   const SourceChipBar({
@@ -32,18 +34,21 @@ class _SourceChipBarState extends State<SourceChipBar> {
     final allSelected = widget.selectedSourceIds.isEmpty;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: context.palette.surface.withValues(alpha: 0.56),
-        borderRadius: BorderRadius.circular(8),
+        color: context.palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadii.row),
         border: Border.all(color: context.palette.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(AppRadii.row),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _expanded = !_expanded);
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
@@ -71,13 +76,21 @@ class _SourceChipBarState extends State<SourceChipBar> {
                   FilterChip(
                     label: const Text('All'),
                     selected: allSelected,
-                    onSelected: (_) => widget.onSelectAll(),
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      widget.onSelectAll();
+                      setState(() => _expanded = false);
+                    },
                   ),
                   for (final source in widget.sources)
                     _SourceChip(
                       source: source,
                       selected: widget.selectedSourceIds.contains(source.id),
-                      onToggle: widget.onToggle,
+                      onToggle: (sourceId) {
+                        HapticFeedback.selectionClick();
+                        widget.onToggle(sourceId);
+                        setState(() => _expanded = false);
+                      },
                     ),
                 ],
               ),
@@ -103,24 +116,23 @@ class _SourceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unavailable = !source.canSearch;
+    final palette = context.palette;
     return FilterChip(
-      label: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(source.name),
-          if (unavailable)
-            Text(
-              'Unavailable',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.palette.secondaryText,
-              ),
-            ),
-        ],
-      ),
+      label: Text(source.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       selected: selected,
       onSelected: unavailable ? null : (_) => onToggle(source.id),
-      avatar: unavailable ? const Icon(Icons.block_rounded, size: 16) : null,
+      avatar: Tooltip(
+        message: unavailable ? 'Unavailable' : 'Available',
+        child: Icon(
+          unavailable ? Icons.block_rounded : Icons.circle,
+          size: 16,
+          color: unavailable ? palette.secondaryText : Colors.transparent,
+        ),
+      ),
+      avatarBoxConstraints: const BoxConstraints.tightFor(
+        width: 16,
+        height: 16,
+      ),
     );
   }
 }

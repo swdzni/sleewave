@@ -4,6 +4,7 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/models/server_status.dart';
 import '../../../../core/models/source_info.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_tokens.dart';
 
 class OnlineLibrarySection extends StatelessWidget {
   const OnlineLibrarySection({
@@ -45,8 +46,8 @@ class OnlineLibrarySection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: context.palette.surface,
-            borderRadius: BorderRadius.circular(8),
+            color: context.palette.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppRadii.row),
             border: Border.all(color: context.palette.border),
           ),
           child: Row(
@@ -156,7 +157,7 @@ class OnlineLibrarySection extends StatelessWidget {
         ],
         for (final source in sources)
           ListTile(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             leading: Icon(
               source.canSearch
                   ? Icons.check_circle_rounded

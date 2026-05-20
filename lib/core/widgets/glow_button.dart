@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_tokens.dart';
 import '../theme/glow_theme.dart';
 
 class GlowButton extends StatefulWidget {
@@ -35,14 +37,18 @@ class _GlowButtonState extends State<GlowButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.loading;
-    final color = widget.active
-        ? context.palette.accent
-        : context.palette.elevated;
+    final palette = context.palette;
+    final color = widget.active ? palette.accent : palette.surfaceMuted;
     return Semantics(
       button: true,
       label: widget.semanticLabel ?? widget.label,
       child: GestureDetector(
-        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapDown: enabled
+            ? (_) {
+                HapticFeedback.selectionClick();
+                setState(() => _pressed = true);
+              }
+            : null,
         onTapCancel: () => setState(() => _pressed = false),
         onTapUp: (_) => setState(() => _pressed = false),
         onTap: enabled ? widget.onPressed : null,
@@ -56,12 +62,15 @@ class _GlowButtonState extends State<GlowButton> {
             ? widget.onLongPressEnd
             : null,
         child: AnimatedScale(
-          scale: _pressed ? 0.96 : 1,
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
+          scale: _pressed ? 0.975 : 1,
+          duration: AppDurations.press,
+          curve: AppCurves.standard,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            duration: AppDurations.state,
+            constraints: const BoxConstraints(
+              minWidth: AppSizes.iconButton,
+              minHeight: AppSizes.iconButton,
+            ),
             padding: EdgeInsets.symmetric(
               horizontal: widget.label == null ? 0 : 14,
               vertical: 10,
@@ -69,9 +78,11 @@ class _GlowButtonState extends State<GlowButton> {
             decoration: BoxDecoration(
               color: enabled
                   ? color
-                  : context.palette.elevated.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: context.palette.border),
+                  : palette.surfaceMuted.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              border: Border.all(
+                color: widget.active ? palette.strongBorder : palette.border,
+              ),
               boxShadow: widget.active && enabled
                   ? GlowTheme.softGlow(color)
                   : null,
@@ -86,15 +97,13 @@ class _GlowButtonState extends State<GlowButton> {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: context.palette.primaryText,
+                      color: palette.primaryText,
                     ),
                   )
                 else
                   Icon(
                     widget.icon,
-                    color: enabled
-                        ? context.palette.primaryText
-                        : context.palette.secondaryText,
+                    color: enabled ? palette.primaryText : palette.tertiaryText,
                     size: 20,
                   ),
                 if (widget.label != null) ...[

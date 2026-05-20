@@ -55,6 +55,91 @@ void main() {
     expect(queue.queue.map((track) => track.id), ['one', 'three', 'two']);
     expect(queue.current?.id, 'two');
   });
+
+  test('next playable index skips unavailable tracks', () {
+    final queue = QueueService()
+      ..setQueue([_track('one'), _track('two'), _track('three')]);
+
+    final next = queue.nextPlayableIndex(
+      isPlayable: (track) => track.id != 'two',
+    );
+
+    expect(next, 2);
+    expect(queue.index, 0);
+  });
+
+  test('previous playable index skips unavailable tracks', () {
+    final queue = QueueService()
+      ..setQueue([
+        _track('one'),
+        _track('two'),
+        _track('three'),
+      ], startIndex: 2);
+
+    final previous = queue.previousPlayableIndex(
+      isPlayable: (track) => track.id != 'two',
+    );
+
+    expect(previous, 0);
+    expect(queue.index, 2);
+  });
+
+  test('repeat wrap skips unavailable tracks', () {
+    final queue = QueueService()
+      ..setQueue([
+        _track('one'),
+        _track('two'),
+        _track('three'),
+      ], startIndex: 2);
+
+    final next = queue.nextPlayableIndex(
+      wrap: true,
+      isPlayable: (track) => track.id == 'two',
+    );
+
+    expect(next, 1);
+    expect(queue.index, 2);
+  });
+
+  test('shuffle playable index excludes current track', () {
+    final queue = QueueService()
+      ..setQueue([_track('one'), _track('two')], startIndex: 0);
+
+    final next = queue.nextPlayableIndex(
+      shuffle: true,
+      isPlayable: (_) => true,
+    );
+
+    expect(next, 1);
+    expect(queue.index, 0);
+  });
+
+  test('nearest playable index ignores invalid jumps', () {
+    final queue = QueueService()
+      ..setQueue([_track('one'), _track('two')], startIndex: 0);
+
+    final resolved = queue.nearestPlayableIndexFrom(9, isPlayable: (_) => true);
+
+    expect(resolved, isNull);
+    expect(queue.index, 0);
+  });
+
+  test('nearest playable index scans forward then backward', () {
+    final queue = QueueService()
+      ..setQueue([
+        _track('one'),
+        _track('two'),
+        _track('three'),
+      ], startIndex: 0);
+
+    final resolved = queue.nearestPlayableIndexFrom(
+      1,
+      isPlayable: (track) => track.id == 'three',
+    );
+
+    expect(resolved, 2);
+    expect(queue.index, 0);
+  });
 }
 
 Track _track(String id) {

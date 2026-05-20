@@ -6,7 +6,7 @@ import 'package:sleewave/core/theme/app_theme.dart';
 import 'package:sleewave/functions/search/widgets/source_chip_bar.dart';
 
 void main() {
-  testWidgets('shows all sources inline and toggles selections', (
+  testWidgets('starts expanded and collapses after source selection', (
     tester,
   ) async {
     var selectedAll = false;
@@ -37,13 +37,23 @@ void main() {
     expect(find.text('C'), findsOneWidget);
     expect(find.text('D'), findsOneWidget);
     expect(find.text('More'), findsNothing);
-    expect(find.text('Unavailable'), findsOneWidget);
+    expect(find.text('Unavailable'), findsNothing);
 
-    await tester.tap(find.text('All'));
-    expect(selectedAll, isTrue);
+    final availableHeight = tester.getSize(find.text('A')).height;
+    final unavailableHeight = tester.getSize(find.text('E')).height;
+    expect(unavailableHeight, availableHeight);
 
-    await tester.tap(find.text('B'));
+    await tester.tap(find.widgetWithText(FilterChip, 'B'));
+    await tester.pumpAndSettle();
     expect(toggled, 'b');
+    expect(find.text('B'), findsNothing);
+
+    await tester.tap(find.text('Sources'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilterChip, 'All'));
+    await tester.pumpAndSettle();
+    expect(selectedAll, isTrue);
+    expect(find.text('All'), findsNothing);
   });
 }
 

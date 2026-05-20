@@ -37,7 +37,13 @@ class CoverArt extends StatelessWidget {
     }
     return ClipRRect(
       borderRadius: radius,
-      child: SizedBox(width: size, height: size, child: child),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.palette.surfaceMuted,
+          border: Border.all(color: context.palette.border),
+        ),
+        child: SizedBox(width: size, height: size, child: child),
+      ),
     );
   }
 }
@@ -50,21 +56,11 @@ class _Fallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.palette.elevated,
-        gradient: LinearGradient(
-          colors: [
-            context.palette.elevated,
-            context.palette.accent.withValues(alpha: 0.24),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      decoration: BoxDecoration(color: context.palette.surfaceMuted),
       child: Icon(
         Icons.music_note_rounded,
         size: size * 0.42,
-        color: context.palette.secondaryText,
+        color: context.palette.tertiaryText,
       ),
     );
   }

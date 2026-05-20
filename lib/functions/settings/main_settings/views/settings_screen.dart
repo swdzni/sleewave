@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/models/app_settings.dart';
 import '../../../../core/models/server_status.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/app_scaffold.dart';
 import '../view_models/settings_view_model.dart';
 
@@ -130,8 +131,8 @@ class _SettingsGroup extends StatelessWidget {
         ),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: context.palette.surface,
-            borderRadius: BorderRadius.circular(8),
+            color: context.palette.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppRadii.row),
             border: Border.all(color: context.palette.border),
           ),
           child: Column(children: children),

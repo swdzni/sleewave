@@ -102,11 +102,15 @@ class PlaybackService extends SafeChangeNotifier {
     if (index == _queue.index) {
       return;
     }
-    _queue.jumpTo(index);
-    final track = _queue.current;
-    if (track != null) {
-      await _loadAndPlay(track, backend: backend ?? _lastBackend);
+    final resolvedIndex = _nearestPlayableIndex(
+      index,
+      backend: backend ?? _lastBackend,
+    );
+    if (resolvedIndex == null) {
+      _setNonStoppingPlaybackError('No playable tracks in queue.');
+      return;
     }
+    await _jumpToResolvedIndex(resolvedIndex, backend: backend ?? _lastBackend);
   }
 
   Future<void> togglePlayPause() async {
@@ -138,23 +142,29 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<bool> next({BackendRepository? backend}) async {
     _lastBackend = backend ?? _lastBackend;
-    final nextTrack = _queue.next(
+    final nextIndex = _nextPlayableIndex(
+      backend: backend ?? _lastBackend,
       wrap: _snapshot.mode == PlaybackMode.repeatAll,
+      shuffle: _snapshot.mode == PlaybackMode.shuffle,
     );
-    if (nextTrack == null) {
+    if (nextIndex == null) {
+      _setNonStoppingPlaybackError('No playable next track.');
       return false;
     }
-    await _loadAndPlay(nextTrack, backend: backend ?? _lastBackend);
+    await _jumpToResolvedIndex(nextIndex, backend: backend ?? _lastBackend);
     return true;
   }
 
   Future<bool> previous({BackendRepository? backend}) async {
     _lastBackend = backend ?? _lastBackend;
-    final previousTrack = _queue.previous();
-    if (previousTrack == null) {
+    final previousIndex = _previousPlayableIndex(
+      backend: backend ?? _lastBackend,
+    );
+    if (previousIndex == null) {
+      _setNonStoppingPlaybackError('No playable previous track.');
       return false;
     }
-    await _loadAndPlay(previousTrack, backend: backend ?? _lastBackend);
+    await _jumpToResolvedIndex(previousIndex, backend: backend ?? _lastBackend);
     return true;
   }
 
@@ -301,20 +311,11 @@ class PlaybackService extends SafeChangeNotifier {
           await _player.seek(Duration.zero);
           await _player.play();
         case PlaybackMode.shuffle:
-          final nextTrack = _queue.next();
-          if (nextTrack != null) {
-            await _loadAndPlay(nextTrack, backend: _lastBackend);
-          }
+          await _advanceAfterCompletion(shuffle: true);
         case PlaybackMode.repeatAll:
-          final nextTrack = _queue.next(wrap: true);
-          if (nextTrack != null) {
-            await _loadAndPlay(nextTrack, backend: _lastBackend);
-          }
+          await _advanceAfterCompletion(wrap: true);
         case PlaybackMode.normal:
-          final nextTrack = _queue.next();
-          if (nextTrack != null) {
-            await _loadAndPlay(nextTrack, backend: _lastBackend);
-          } else {
+          if (!await _advanceAfterCompletion()) {
             _snapshot = _snapshot.copyWith(isPlaying: false);
             notifyListeners();
           }
@@ -339,6 +340,15 @@ class PlaybackService extends SafeChangeNotifier {
     );
     notifyListeners();
     _scheduleRemoteControlsRefresh();
+  }
+
+  void _setNonStoppingPlaybackError(String message) {
+    _snapshot = _snapshot.copyWith(
+      isBuffering: false,
+      queue: _queue.queue,
+      error: message,
+    );
+    notifyListeners();
   }
 
   bool _isStaleLoad(int generation) => generation != _loadGeneration;
@@ -375,6 +385,77 @@ class PlaybackService extends SafeChangeNotifier {
       );
     }
     return null;
+  }
+
+  Future<bool> isTrackPlayable(
+    Track track, {
+    BackendRepository? backend,
+  }) async {
+    final source = await _audioSourceFor(
+      track,
+      backend: backend ?? _lastBackend,
+    );
+    return source != null;
+  }
+
+  int? _nextPlayableIndex({
+    required BackendRepository? backend,
+    bool wrap = false,
+    bool shuffle = false,
+  }) {
+    return _queue.nextPlayableIndex(
+      isPlayable: (track) => _isProbablyPlayable(track, backend: backend),
+      wrap: wrap,
+      shuffle: shuffle,
+    );
+  }
+
+  int? _previousPlayableIndex({required BackendRepository? backend}) {
+    return _queue.previousPlayableIndex(
+      isPlayable: (track) => _isProbablyPlayable(track, backend: backend),
+    );
+  }
+
+  int? _nearestPlayableIndex(int index, {required BackendRepository? backend}) {
+    return _queue.nearestPlayableIndexFrom(
+      index,
+      isPlayable: (track) => _isProbablyPlayable(track, backend: backend),
+    );
+  }
+
+  bool _isProbablyPlayable(Track track, {required BackendRepository? backend}) {
+    final localPath = track.localPath;
+    if (localPath != null && localPath.isNotEmpty) {
+      return true;
+    }
+    return track.resultId != null && backend != null;
+  }
+
+  Future<void> _jumpToResolvedIndex(
+    int index, {
+    required BackendRepository? backend,
+  }) async {
+    _queue.jumpTo(index);
+    final track = _queue.current;
+    if (track != null) {
+      await _loadAndPlay(track, backend: backend);
+    }
+  }
+
+  Future<bool> _advanceAfterCompletion({
+    bool wrap = false,
+    bool shuffle = false,
+  }) async {
+    final nextIndex = _nextPlayableIndex(
+      backend: _lastBackend,
+      wrap: wrap,
+      shuffle: shuffle,
+    );
+    if (nextIndex == null) {
+      return false;
+    }
+    await _jumpToResolvedIndex(nextIndex, backend: _lastBackend);
+    return true;
   }
 
   MediaItem _mediaItem(Track track) {

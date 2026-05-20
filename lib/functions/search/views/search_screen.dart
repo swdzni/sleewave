@@ -1,9 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../../../core/widgets/app_alert.dart';
 import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../player/view_models/player_view_model.dart';
 import '../view_models/search_view_model.dart';
@@ -30,11 +31,12 @@ class SearchScreen extends ConsumerWidget {
     return AppScaffold(
       safeBottom: false,
       child: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.only(bottom: 220),
         children: [
           Text('Search', style: Theme.of(context).textTheme.headlineLarge),
           const SizedBox(height: 14),
-          CupertinoSearchTextField(
+          AppSearchField(
             placeholder: 'Search for artists, tracks...',
             onChanged: vm.setQuery,
             onSubmitted: (_) => vm.searchNow(force: true),
@@ -54,12 +56,22 @@ class SearchScreen extends ConsumerWidget {
           for (final warning in state.warnings)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Chip(label: Text(warning)),
+              child: AppAlert(
+                title: 'Source warning',
+                message: warning,
+                variant: AppAlertVariant.warning,
+              ),
             ),
           if (state.error != null)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 18),
-              child: Text(state.error!, textAlign: TextAlign.center),
+              child: AppAlert(
+                title: 'Search failed',
+                message: state.error!,
+                variant: AppAlertVariant.danger,
+                actionLabel: 'Try again',
+                onAction: () => vm.searchNow(force: true),
+              ),
             ),
           if (state.query.trim().isEmpty)
             EmptyState(

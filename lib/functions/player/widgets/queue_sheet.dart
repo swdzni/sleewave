@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/cover_art.dart';
+import '../../../core/widgets/now_playing_bars.dart';
 import '../view_models/player_view_model.dart';
 
 Future<void> showQueueSheet(BuildContext context) {
@@ -77,6 +80,7 @@ class _QueueSheetBody extends ConsumerWidget {
     final queue = queueService.queue;
     final playbackSnapshot = ref.watch(playerViewModelProvider).state.snapshot;
     final currentTrackId = playbackSnapshot.currentTrack?.id;
+    final onlineAvailable = ref.watch(backendRepositoryProvider) != null;
     return Dismissible(
       key: const ValueKey('queue-sheet'),
       direction: DismissDirection.down,
@@ -85,9 +89,20 @@ class _QueueSheetBody extends ConsumerWidget {
         color: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
-            color: context.palette.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            color: context.palette.elevated,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadii.sheet),
+            ),
             border: Border(top: BorderSide(color: context.palette.border)),
+            boxShadow: context.palette.shadow.a == 0
+                ? null
+                : [
+                    BoxShadow(
+                      color: context.palette.shadow,
+                      blurRadius: 32,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
           ),
           child: SafeArea(
             top: false,
@@ -129,57 +144,96 @@ class _QueueSheetBody extends ConsumerWidget {
                           ),
                         )
                       : ReorderableListView.builder(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.compactScreen,
+                            0,
+                            AppSpacing.compactScreen,
+                            AppSpacing.screen,
+                          ),
                           itemCount: queue.length,
                           onReorder: ref.read(queueServiceProvider).reorder,
                           itemBuilder: (context, index) {
                             final track = queue[index];
                             final active = currentTrackId == track.id;
-                            return ListTile(
+                            final playable =
+                                track.isLocalPlayable ||
+                                (track.resultId != null && onlineAvailable);
+                            final palette = context.palette;
+                            return AppListTile(
                               key: ValueKey('queue-${track.id}-$index'),
-                              tileColor: active
-                                  ? context.palette.accent.withValues(
-                                      alpha: 0.12,
-                                    )
-                                  : null,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(
-                                  color: active
-                                      ? context.palette.accent
-                                      : Colors.transparent,
-                                ),
-                              ),
-                              leading: CoverArt(
-                                coverUrl: track.coverUrl,
-                                localCoverPath: track.localCoverPath,
-                                size: 42,
-                                borderRadius: 8,
-                              ),
-                              title: Text(
-                                track.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: active
-                                    ? TextStyle(color: context.palette.accent)
-                                    : null,
-                              ),
-                              subtitle: Text(
-                                active
-                                    ? '${playbackSnapshot.isPlaying ? 'Playing now' : 'Paused'} · ${track.displayArtist}'
-                                    : track.displayArtist,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: active
-                                  ? _PlayingBars(
-                                      color: context.palette.accent,
-                                      playing: playbackSnapshot.isPlaying,
-                                    )
-                                  : const Icon(Icons.drag_handle_rounded),
+                              active: active,
+                              enabled: playable,
                               onTap: () => ref
                                   .read(playerViewModelProvider)
                                   .jumpToQueueIndex(index),
+                              child: Row(
+                                children: [
+                                  CoverArt(
+                                    coverUrl: track.coverUrl,
+                                    localCoverPath: track.localCoverPath,
+                                    size: 44,
+                                    borderRadius: 12,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          track.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleSmall
+                                              ?.copyWith(
+                                                color: active
+                                                    ? palette.accent
+                                                    : playable
+                                                    ? palette.primaryText
+                                                    : palette.secondaryText,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          active
+                                              ? '${playbackSnapshot.isPlaying ? 'Playing now' : 'Paused'} · ${track.displayArtist}'
+                                              : playable
+                                              ? track.displayArtist
+                                              : 'Unavailable offline · ${track.displayArtist}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                color: playable
+                                                    ? palette.secondaryText
+                                                    : palette.tertiaryText,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  active
+                                      ? NowPlayingBars(
+                                          color: palette.accent,
+                                          playing: playbackSnapshot.isPlaying,
+                                        )
+                                      : Icon(
+                                          playable
+                                              ? Icons.drag_handle_rounded
+                                              : Icons.block_rounded,
+                                          color: playable
+                                              ? palette.secondaryText
+                                              : palette.tertiaryText,
+                                        ),
+                                ],
+                              ),
                             );
                           },
                         ),
@@ -188,89 +242,6 @@ class _QueueSheetBody extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PlayingBars extends StatefulWidget {
-  const _PlayingBars({required this.color, required this.playing});
-
-  final Color color;
-  final bool playing;
-
-  @override
-  State<_PlayingBars> createState() => _PlayingBarsState();
-}
-
-class _PlayingBarsState extends State<_PlayingBars>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 820),
-      value: 0.5,
-    );
-    if (widget.playing) {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _PlayingBars oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.playing == oldWidget.playing) {
-      return;
-    }
-    if (widget.playing) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final value = _controller.value;
-        return SizedBox(
-          width: 24,
-          height: 22,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _bar(8 + 9 * value),
-              const SizedBox(width: 3),
-              _bar(16 - 7 * value),
-              const SizedBox(width: 3),
-              _bar(10 + 6 * (1 - value)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _bar(double height) {
-    return Container(
-      width: 4,
-      height: height,
-      decoration: BoxDecoration(
-        color: widget.color,
-        borderRadius: BorderRadius.circular(999),
       ),
     );
   }

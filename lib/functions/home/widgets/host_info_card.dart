@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/server_status.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 
 class HostInfoCard extends StatelessWidget {
   const HostInfoCard({super.key, required this.status, required this.onTap});
@@ -20,12 +21,12 @@ class HostInfoCard extends StatelessWidget {
     };
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadii.row),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: context.palette.surface,
-          borderRadius: BorderRadius.circular(8),
+          color: context.palette.surfaceMuted,
+          borderRadius: BorderRadius.circular(AppRadii.row),
           border: Border.all(color: context.palette.border),
         ),
         child: Row(

@@ -3,6 +3,8 @@ import 'dart:math';
 import '../../models/track.dart';
 import '../../utils/safe_change_notifier.dart';
 
+typedef TrackPredicate = bool Function(Track track);
+
 class QueueService extends SafeChangeNotifier {
   List<Track> _queue = const [];
   int _index = 0;
@@ -47,6 +49,75 @@ class QueueService extends SafeChangeNotifier {
     _index += 1;
     notifyListeners();
     return current;
+  }
+
+  int? nextPlayableIndex({
+    required TrackPredicate isPlayable,
+    bool wrap = false,
+    bool shuffle = false,
+  }) {
+    if (_queue.isEmpty) {
+      return null;
+    }
+    if (shuffle && _queue.length > 1) {
+      final candidates = [
+        for (var index = 0; index < _queue.length; index++)
+          if (index != _index && isPlayable(_queue[index])) index,
+      ];
+      if (candidates.isEmpty) {
+        return null;
+      }
+      return candidates[_random.nextInt(candidates.length)];
+    }
+    for (var index = _index + 1; index < _queue.length; index++) {
+      if (isPlayable(_queue[index])) {
+        return index;
+      }
+    }
+    if (!wrap) {
+      return null;
+    }
+    for (var index = 0; index < _index; index++) {
+      if (isPlayable(_queue[index])) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  int? previousPlayableIndex({required TrackPredicate isPlayable}) {
+    if (_queue.isEmpty) {
+      return null;
+    }
+    for (var index = _index - 1; index >= 0; index--) {
+      if (isPlayable(_queue[index])) {
+        return index;
+      }
+    }
+    return null;
+  }
+
+  int? nearestPlayableIndexFrom(
+    int index, {
+    required TrackPredicate isPlayable,
+  }) {
+    if (index < 0 || index >= _queue.length) {
+      return null;
+    }
+    if (isPlayable(_queue[index])) {
+      return index;
+    }
+    for (var nextIndex = index + 1; nextIndex < _queue.length; nextIndex++) {
+      if (isPlayable(_queue[nextIndex])) {
+        return nextIndex;
+      }
+    }
+    for (var previousIndex = index - 1; previousIndex >= 0; previousIndex--) {
+      if (isPlayable(_queue[previousIndex])) {
+        return previousIndex;
+      }
+    }
+    return null;
   }
 
   Track? previous() {

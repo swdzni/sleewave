@@ -5,6 +5,9 @@ import '../../../core/models/playlist.dart';
 import '../../../core/models/track.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/bottom_sheet_shell.dart';
+import '../../../core/widgets/app_search_field.dart';
+import '../../../core/widgets/cover_art.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../player/view_models/player_view_model.dart';
 
 class AddToPlaylistSheet extends ConsumerStatefulWidget {
@@ -21,6 +24,7 @@ class _AddToPlaylistSheetState extends ConsumerState<AddToPlaylistSheet> {
   late Future<List<Playlist>> _playlistsFuture;
   Track? _track;
   Set<String> _selectedPlaylistIds = {};
+  String _filter = '';
 
   Track get _currentTrack => _track ?? widget.track;
 
@@ -43,7 +47,12 @@ class _AddToPlaylistSheetState extends ConsumerState<AddToPlaylistSheet> {
     return FutureBuilder<List<Playlist>>(
       future: _playlistsFuture,
       builder: (context, snapshot) {
-        final playlists = snapshot.data ?? const <Playlist>[];
+        final playlists = (snapshot.data ?? const <Playlist>[]).where((
+          playlist,
+        ) {
+          final query = _filter.trim().toLowerCase();
+          return query.isEmpty || playlist.name.toLowerCase().contains(query);
+        }).toList();
         return BottomSheetShell(
           child: SizedBox(
             height: height,
@@ -66,13 +75,22 @@ class _AddToPlaylistSheetState extends ConsumerState<AddToPlaylistSheet> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                _TrackPreview(track: _currentTrack),
+                const SizedBox(height: 10),
+                AppSearchField(
+                  placeholder: 'Filter playlists',
+                  onChanged: (value) => setState(() => _filter = value),
+                ),
+                const SizedBox(height: 10),
                 Expanded(
                   child:
                       playlists.isEmpty &&
                           snapshot.connectionState != ConnectionState.waiting
                       ? Center(
                           child: Text(
-                            'No playlists yet.',
+                            _filter.trim().isEmpty
+                                ? 'No playlists yet.'
+                                : 'No matching playlists.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         )
@@ -80,20 +98,37 @@ class _AddToPlaylistSheetState extends ConsumerState<AddToPlaylistSheet> {
                           itemCount: playlists.length,
                           itemBuilder: (context, index) {
                             final playlist = playlists[index];
-                            return CheckboxListTile(
-                              value: _selectedPlaylistIds.contains(playlist.id),
+                            final selected = _selectedPlaylistIds.contains(
+                              playlist.id,
+                            );
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              leading: Icon(
+                                selected
+                                    ? Icons.check_circle_rounded
+                                    : Icons.playlist_play_rounded,
+                                color: selected
+                                    ? context.palette.accent
+                                    : context.palette.secondaryText,
+                              ),
                               title: Text(
                                 playlist.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               subtitle: Text('${playlist.trackCount} tracks'),
-                              controlAffinity: ListTileControlAffinity.leading,
-                              contentPadding: EdgeInsets.zero,
-                              onChanged: (selected) => _setMembership(
-                                playlist,
-                                selected: selected == true,
+                              trailing: Icon(
+                                selected
+                                    ? Icons.check_rounded
+                                    : Icons.add_rounded,
+                                color: selected
+                                    ? context.palette.accent
+                                    : context.palette.secondaryText,
                               ),
+                              onTap: () =>
+                                  _setMembership(playlist, selected: !selected),
                             );
                           },
                         ),
@@ -174,5 +209,55 @@ class _AddToPlaylistSheetState extends ConsumerState<AddToPlaylistSheet> {
     await _setMembership(playlist, selected: true);
     _controller.clear();
     setState(() => _playlistsFuture = _load());
+  }
+}
+
+class _TrackPreview extends StatelessWidget {
+  const _TrackPreview({required this.track});
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: palette.border),
+      ),
+      child: Row(
+        children: [
+          CoverArt(
+            coverUrl: track.coverUrl,
+            localCoverPath: track.localCoverPath,
+            size: 42,
+            borderRadius: 12,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                Text(
+                  track.displayArtist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.playlist_add_rounded, color: palette.secondaryText),
+        ],
+      ),
+    );
   }
 }

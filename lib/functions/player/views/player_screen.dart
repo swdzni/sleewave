@@ -114,7 +114,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   coverUrl: track.coverUrl,
                                   localCoverPath: track.localCoverPath,
                                   size: 300,
-                                  borderRadius: 18,
+                                  borderRadius: 24,
                                 ),
                               ),
                             ),
@@ -173,10 +173,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         ),
                         Row(
                           children: [
-                            Text(_format(displayedPosition)),
+                            Text(
+                              _format(displayedPosition),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                             const Spacer(),
                             Text(
                               '-${_format(snapshot.duration - displayedPosition)}',
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
