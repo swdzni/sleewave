@@ -164,6 +164,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         await ref.read(libraryViewModelProvider).load();
       }
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Download failed. Try again.');
@@ -187,6 +188,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       await ref.read(libraryViewModelProvider).load();
       _showMessage(result.message);
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Could not delete from server.');
@@ -207,6 +209,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     } catch (error) {
       _showMessage(error.toString());
     }
+  }
+
+  Future<void> _refreshBackendIfTrackExpired(ApiException error) async {
+    if (!error.needsTrackRefresh) {
+      return;
+    }
+    await ref
+        .read(appStartupControllerProvider)
+        .refreshBackend(keepConnectedStatus: true);
+    await ref.read(libraryViewModelProvider).load();
   }
 
   void _showMessage(String message) {

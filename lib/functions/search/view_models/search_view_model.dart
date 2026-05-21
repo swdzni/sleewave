@@ -260,6 +260,7 @@ class SearchViewModel extends SafeChangeNotifier {
       notifyLibraryChanged(_ref);
       notifyListeners();
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _state = _state.copyWith(error: error.message);
       notifyListeners();
     } catch (_) {
@@ -284,6 +285,13 @@ class SearchViewModel extends SafeChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _refreshBackendIfTrackExpired(ApiException error) async {
+    if (!error.needsTrackRefresh) {
+      return;
+    }
+    await _startup.refreshBackend(keepConnectedStatus: true);
+  }
+
   Future<void> shareTrack(Track track) async {
     try {
       await _ref
@@ -296,6 +304,7 @@ class SearchViewModel extends SafeChangeNotifier {
       _state = _state.copyWith(error: null);
       notifyListeners();
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _state = _state.copyWith(error: error.message);
       notifyListeners();
     } catch (error) {
@@ -331,6 +340,7 @@ class SearchViewModel extends SafeChangeNotifier {
       notifyLibraryChanged(_ref);
       notifyListeners();
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _state = _state.copyWith(error: error.message);
       notifyListeners();
     } catch (_) {

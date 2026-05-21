@@ -163,6 +163,13 @@ class SettingsViewModel extends SafeChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setDirectUrlEnabled(bool enabled) async {
+    final settings = _theme.settings.copyWith(directUrlEnabled: enabled);
+    await _theme.saveSettings(settings);
+    _state = _state.copyWith(settings: settings, message: 'Saved');
+    notifyListeners();
+  }
+
   Future<void> clear() async {
     final settings = _theme.settings.copyWith(
       backendBaseUrl: null,

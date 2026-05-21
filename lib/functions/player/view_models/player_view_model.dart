@@ -32,15 +32,14 @@ class PlayerViewModel extends SafeChangeNotifier {
     if (!_isPlayable(track, connected)) {
       return;
     }
+    final settings = _ref.read(themeControllerProvider).settings;
     await _playback.playTrack(
       track,
       backend: _ref.read(backendRepositoryProvider),
       queue: queue,
       activePlaylistId: activePlaylistId,
-      recentHistoryLimit: _ref
-          .read(themeControllerProvider)
-          .settings
-          .recentHistoryLimit,
+      recentHistoryLimit: settings.recentHistoryLimit,
+      directUrlEnabled: settings.directUrlEnabled,
     );
   }
 

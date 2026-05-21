@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/app_settings.dart';
+import '../models/track.dart';
+
 class GlowTheme {
   const GlowTheme._();
 
@@ -15,5 +18,29 @@ class GlowTheme {
         spreadRadius: 1,
       ),
     ];
+  }
+
+  static Color playbackAccent({
+    required GlowMode mode,
+    required Track? track,
+    required Color fallback,
+  }) {
+    if (mode == GlowMode.static || track == null) {
+      return fallback;
+    }
+    final seed = [
+      track.coverUrl,
+      track.localCoverPath,
+      track.title,
+      track.displayArtist,
+    ].whereType<String>().join('|');
+    if (seed.isEmpty) {
+      return fallback;
+    }
+    final hash = seed.codeUnits.fold<int>(
+      0,
+      (value, unit) => (value * 31 + unit) & 0x7fffffff,
+    );
+    return HSLColor.fromAHSL(1, (hash % 360).toDouble(), 0.62, 0.64).toColor();
   }
 }

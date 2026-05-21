@@ -25,10 +25,11 @@ class AppListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final tokens = context.themeTokens;
     return AppPressable(
       onTap: enabled ? onTap : null,
       onLongPress: onLongPress,
-      borderRadius: AppRadii.row,
+      borderRadius: tokens.rowRadius,
       child: AnimatedContainer(
         duration: AppDurations.state,
         curve: AppCurves.standard,
@@ -38,14 +39,14 @@ class AppListTile extends StatelessWidget {
           color: enabled
               ? palette.surface
               : palette.surface.withValues(alpha: 0.58),
-          borderRadius: BorderRadius.circular(AppRadii.row),
+          borderRadius: BorderRadius.circular(tokens.rowRadius),
           border: Border.all(color: active ? palette.accent : palette.border),
           boxShadow: active && palette.shadow.a > 0
               ? [
                   BoxShadow(
                     color: palette.accent.withValues(alpha: 0.14),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
+                    blurRadius: tokens.shadowBlur,
+                    offset: tokens.shadowOffset,
                   ),
                 ]
               : null,

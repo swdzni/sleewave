@@ -8,31 +8,50 @@ import 'app_tokens.dart';
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData fromMode(SleewaveThemeMode mode) {
-    final palette = switch (mode) {
-      SleewaveThemeMode.pureDark => AppColors.pureDark,
-      SleewaveThemeMode.dark => AppColors.dark,
-      SleewaveThemeMode.white => AppColors.white,
+  static AppPalette paletteFor(SleewaveThemeMode mode) {
+    return switch (mode) {
+      SleewaveThemeMode.caffeineDark => AppColors.caffeineDark,
+      SleewaveThemeMode.caffeineLight => AppColors.caffeineLight,
+      SleewaveThemeMode.monoDark => AppColors.monoDark,
+      SleewaveThemeMode.monoLight => AppColors.monoLight,
     };
-    final brightness = mode == SleewaveThemeMode.white
+  }
+
+  static AppThemeTokens tokensFor(SleewaveThemeMode mode) {
+    return switch (mode) {
+      SleewaveThemeMode.caffeineDark ||
+      SleewaveThemeMode.caffeineLight => AppThemeTokens.caffeine,
+      SleewaveThemeMode.monoDark ||
+      SleewaveThemeMode.monoLight => AppThemeTokens.mono,
+    };
+  }
+
+  static ThemeData fromMode(SleewaveThemeMode mode) {
+    final palette = paletteFor(mode);
+    final tokens = tokensFor(mode);
+    final brightness =
+        mode == SleewaveThemeMode.caffeineLight ||
+            mode == SleewaveThemeMode.monoLight
         ? Brightness.light
         : Brightness.dark;
     final scheme = ColorScheme.fromSeed(
       seedColor: palette.accent,
       brightness: brightness,
       primary: palette.accent,
-      onPrimary: palette.background,
+      onPrimary: palette.primaryOnAccent,
       surface: palette.surface,
       onSurface: palette.primaryText,
       error: palette.danger,
+      onError: palette.dangerText,
     );
-    final textTheme = _textTheme(palette);
+    final textTheme = _textTheme(palette, tokens);
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       scaffoldBackgroundColor: palette.background,
       colorScheme: scheme,
-      fontFamily: '.SF Pro Text',
+      fontFamily: tokens.fontFamily,
+      fontFamilyFallback: tokens.fontFamilyFallback,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
       cupertinoOverrideTheme: CupertinoThemeData(
@@ -60,7 +79,7 @@ class AppTheme {
           overlayColor: WidgetStatePropertyAll(palette.accentSoft),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.control),
+              borderRadius: BorderRadius.circular(tokens.controlRadius),
             ),
           ),
         ),
@@ -69,14 +88,12 @@ class AppTheme {
         style: FilledButton.styleFrom(
           minimumSize: const Size(44, 44),
           backgroundColor: palette.accent,
-          foregroundColor: brightness == Brightness.dark
-              ? Colors.black
-              : Colors.white,
+          foregroundColor: palette.primaryOnAccent,
           disabledBackgroundColor: palette.elevated.withValues(alpha: 0.55),
           disabledForegroundColor: palette.tertiaryText,
           textStyle: textTheme.labelLarge,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.control),
+            borderRadius: BorderRadius.circular(tokens.controlRadius),
           ),
         ),
       ),
@@ -88,7 +105,7 @@ class AppTheme {
           side: BorderSide(color: palette.border),
           textStyle: textTheme.labelLarge,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.control),
+            borderRadius: BorderRadius.circular(tokens.controlRadius),
           ),
         ),
       ),
@@ -99,13 +116,15 @@ class AppTheme {
           disabledForegroundColor: palette.tertiaryText,
           textStyle: textTheme.labelLarge,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.control),
+            borderRadius: BorderRadius.circular(tokens.controlRadius),
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: palette.surfaceMuted,
+        fillColor: palette.input.withValues(
+          alpha: brightness == Brightness.dark ? 0.62 : 0.36,
+        ),
         hintStyle: textTheme.bodyMedium?.copyWith(color: palette.tertiaryText),
         labelStyle: textTheme.bodyMedium,
         floatingLabelStyle: textTheme.labelMedium?.copyWith(
@@ -115,11 +134,11 @@ class AppTheme {
           horizontal: 16,
           vertical: 14,
         ),
-        border: _inputBorder(palette.border),
-        enabledBorder: _inputBorder(palette.border),
-        focusedBorder: _inputBorder(palette.strongBorder),
-        errorBorder: _inputBorder(palette.danger),
-        focusedErrorBorder: _inputBorder(palette.danger),
+        border: _inputBorder(palette.border, tokens),
+        enabledBorder: _inputBorder(palette.border, tokens),
+        focusedBorder: _inputBorder(palette.strongBorder, tokens),
+        errorBorder: _inputBorder(palette.danger, tokens),
+        focusedErrorBorder: _inputBorder(palette.danger, tokens),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: palette.surfaceMuted,
@@ -132,7 +151,7 @@ class AppTheme {
         iconTheme: IconThemeData(color: palette.secondaryText, size: 16),
         side: BorderSide(color: palette.border),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.chip),
+          borderRadius: BorderRadius.circular(tokens.chipRadius),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       ),
@@ -144,7 +163,7 @@ class AppTheme {
         titleTextStyle: textTheme.titleSmall,
         subtitleTextStyle: textTheme.bodySmall,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.row),
+          borderRadius: BorderRadius.circular(tokens.rowRadius),
         ),
       ),
       sliderTheme: SliderThemeData(
@@ -161,16 +180,17 @@ class AppTheme {
           color: palette.primaryText,
         ),
         behavior: SnackBarBehavior.floating,
+        insetPadding: const EdgeInsets.fromLTRB(20, 0, 20, 156),
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.row),
+          borderRadius: BorderRadius.circular(tokens.rowRadius),
           side: BorderSide(color: palette.border),
         ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: palette.elevated,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.sheet),
+          borderRadius: BorderRadius.circular(tokens.sheetRadius),
           side: BorderSide(color: palette.border),
         ),
         titleTextStyle: textTheme.titleLarge,
@@ -180,16 +200,16 @@ class AppTheme {
         backgroundColor: palette.elevated,
         modalBackgroundColor: palette.elevated,
         elevation: 0,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppRadii.sheet),
+            top: Radius.circular(tokens.sheetRadius),
           ),
         ),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: palette.elevated,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(tokens.controlRadius),
           border: Border.all(color: palette.border),
         ),
         textStyle: textTheme.bodySmall?.copyWith(color: palette.primaryText),
@@ -198,7 +218,7 @@ class AppTheme {
         color: palette.elevated,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.row),
+          borderRadius: BorderRadius.circular(tokens.rowRadius),
           side: BorderSide(color: palette.border),
         ),
         textStyle: textTheme.bodyMedium?.copyWith(color: palette.primaryText),
@@ -220,60 +240,94 @@ class AppTheme {
         linearTrackColor: palette.surfaceMuted,
         circularTrackColor: palette.surfaceMuted,
       ),
-      extensions: [palette],
+      extensions: [palette, tokens],
     );
   }
 
-  static TextTheme _textTheme(AppPalette palette) {
+  static TextTheme _textTheme(AppPalette palette, AppThemeTokens tokens) {
+    final headlineWeight = tokens.isMono ? FontWeight.w700 : FontWeight.w800;
+    final titleWeight = tokens.isMono ? FontWeight.w600 : FontWeight.w700;
+    final labelWeight = tokens.isMono ? FontWeight.w600 : FontWeight.w700;
     return TextTheme(
       headlineLarge: TextStyle(
         color: palette.primaryText,
-        fontSize: 34,
-        fontWeight: FontWeight.w800,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
+        fontSize: tokens.isMono ? 31 : 34,
+        fontWeight: headlineWeight,
         letterSpacing: 0,
-        height: 1.06,
+        height: tokens.isMono ? 1.12 : 1.06,
       ),
       headlineMedium: TextStyle(
         color: palette.primaryText,
-        fontSize: 29,
-        fontWeight: FontWeight.w800,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
+        fontSize: tokens.isMono ? 26 : 29,
+        fontWeight: headlineWeight,
         letterSpacing: 0,
       ),
       titleLarge: TextStyle(
         color: palette.primaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
         fontSize: 22,
-        fontWeight: FontWeight.w700,
+        fontWeight: titleWeight,
         letterSpacing: 0,
       ),
       titleMedium: TextStyle(
         color: palette.primaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
         fontSize: 17,
-        fontWeight: FontWeight.w700,
+        fontWeight: titleWeight,
         letterSpacing: 0,
       ),
       titleSmall: TextStyle(
         color: palette.primaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
         fontSize: 15.5,
-        fontWeight: FontWeight.w700,
+        fontWeight: titleWeight,
         letterSpacing: 0,
       ),
-      bodyLarge: TextStyle(color: palette.primaryText, fontSize: 16),
-      bodyMedium: TextStyle(color: palette.secondaryText, fontSize: 14.5),
-      bodySmall: TextStyle(color: palette.tertiaryText, fontSize: 12.5),
+      bodyLarge: TextStyle(
+        color: palette.primaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
+        fontSize: 16,
+      ),
+      bodyMedium: TextStyle(
+        color: palette.secondaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
+        fontSize: 14.5,
+      ),
+      bodySmall: TextStyle(
+        color: palette.tertiaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
+        fontSize: 12.5,
+      ),
       labelLarge: TextStyle(
         color: palette.primaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
         fontSize: 14,
-        fontWeight: FontWeight.w700,
+        fontWeight: labelWeight,
         letterSpacing: 0,
       ),
       labelMedium: TextStyle(
         color: palette.secondaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
         fontSize: 12.5,
         fontWeight: FontWeight.w600,
         letterSpacing: 0,
       ),
       labelSmall: TextStyle(
         color: palette.tertiaryText,
+        fontFamily: tokens.fontFamily,
+        fontFamilyFallback: tokens.fontFamilyFallback,
         fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0,
@@ -281,9 +335,9 @@ class AppTheme {
     );
   }
 
-  static OutlineInputBorder _inputBorder(Color color) {
+  static OutlineInputBorder _inputBorder(Color color, AppThemeTokens tokens) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppRadii.row),
+      borderRadius: BorderRadius.circular(tokens.controlRadius),
       borderSide: BorderSide(color: color),
     );
   }

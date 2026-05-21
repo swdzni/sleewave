@@ -17,26 +17,17 @@ Future<void> showQueueSheet(BuildContext context) {
     barrierDismissible: true,
     barrierLabel: 'Queue',
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 420),
+    transitionDuration: AppDurations.sheet,
     pageBuilder: (context, animation, secondaryAnimation) {
       return _QueueDialog(animation: animation);
     },
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
-        curve: Curves.easeOutCubic,
+        curve: AppCurves.standard,
         reverseCurve: Curves.easeInCubic,
       );
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.36),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        ),
-      );
+      return FadeTransition(opacity: curved, child: child);
     },
   );
 }
@@ -51,24 +42,25 @@ class _QueueDialog extends ConsumerWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
+        final value = Curves.easeOutCubic.transform(animation.value);
         return BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 12 * animation.value,
-            sigmaY: 12 * animation.value,
-          ),
+          filter: ImageFilter.blur(sigmaX: 12 * value, sigmaY: 12 * value),
           child: ColoredBox(
-            color: Colors.black.withValues(alpha: 0.24 * animation.value),
-            child: child,
+            color: context.palette.background.withValues(alpha: 0.42 * value),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: 0.58,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - value) * 220),
+                  child: child,
+                ),
+              ),
+            ),
           ),
         );
       },
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: FractionallySizedBox(
-          heightFactor: 0.58,
-          child: _QueueSheetBody(),
-        ),
-      ),
+      child: _QueueSheetBody(),
     );
   }
 }
@@ -76,6 +68,7 @@ class _QueueDialog extends ConsumerWidget {
 class _QueueSheetBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.themeTokens;
     final queueService = ref.watch(queueServiceProvider);
     final queue = queueService.queue;
     final playbackSnapshot = ref.watch(playerViewModelProvider).state.snapshot;
@@ -90,8 +83,8 @@ class _QueueSheetBody extends ConsumerWidget {
         child: Container(
           decoration: BoxDecoration(
             color: context.palette.elevated,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadii.sheet),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(tokens.sheetRadius),
             ),
             border: Border(top: BorderSide(color: context.palette.border)),
             boxShadow: context.palette.shadow.a == 0
@@ -99,8 +92,8 @@ class _QueueSheetBody extends ConsumerWidget {
                 : [
                     BoxShadow(
                       color: context.palette.shadow,
-                      blurRadius: 32,
-                      offset: const Offset(0, -8),
+                      blurRadius: tokens.shadowBlur + 14,
+                      offset: -tokens.shadowOffset,
                     ),
                   ],
           ),
@@ -172,7 +165,7 @@ class _QueueSheetBody extends ConsumerWidget {
                                     coverUrl: track.coverUrl,
                                     localCoverPath: track.localCoverPath,
                                     size: 44,
-                                    borderRadius: 12,
+                                    borderRadius: tokens.coverRadius,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(

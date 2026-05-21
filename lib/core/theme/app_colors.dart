@@ -6,6 +6,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.surface,
     required this.surfaceMuted,
     required this.elevated,
+    required this.input,
     required this.primaryText,
     required this.secondaryText,
     required this.tertiaryText,
@@ -13,7 +14,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.strongBorder,
     required this.accent,
     required this.accentSoft,
+    required this.accentText,
+    required this.primaryOnAccent,
     required this.danger,
+    required this.dangerText,
     required this.success,
     required this.warning,
     required this.shadow,
@@ -23,6 +27,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color surface;
   final Color surfaceMuted;
   final Color elevated;
+  final Color input;
   final Color primaryText;
   final Color secondaryText;
   final Color tertiaryText;
@@ -30,7 +35,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color strongBorder;
   final Color accent;
   final Color accentSoft;
+  final Color accentText;
+  final Color primaryOnAccent;
   final Color danger;
+  final Color dangerText;
   final Color success;
   final Color warning;
   final Color shadow;
@@ -41,6 +49,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? surface,
     Color? surfaceMuted,
     Color? elevated,
+    Color? input,
     Color? primaryText,
     Color? secondaryText,
     Color? tertiaryText,
@@ -48,7 +57,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? strongBorder,
     Color? accent,
     Color? accentSoft,
+    Color? accentText,
+    Color? primaryOnAccent,
     Color? danger,
+    Color? dangerText,
     Color? success,
     Color? warning,
     Color? shadow,
@@ -58,6 +70,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surface: surface ?? this.surface,
       surfaceMuted: surfaceMuted ?? this.surfaceMuted,
       elevated: elevated ?? this.elevated,
+      input: input ?? this.input,
       primaryText: primaryText ?? this.primaryText,
       secondaryText: secondaryText ?? this.secondaryText,
       tertiaryText: tertiaryText ?? this.tertiaryText,
@@ -65,7 +78,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
       strongBorder: strongBorder ?? this.strongBorder,
       accent: accent ?? this.accent,
       accentSoft: accentSoft ?? this.accentSoft,
+      accentText: accentText ?? this.accentText,
+      primaryOnAccent: primaryOnAccent ?? this.primaryOnAccent,
       danger: danger ?? this.danger,
+      dangerText: dangerText ?? this.dangerText,
       success: success ?? this.success,
       warning: warning ?? this.warning,
       shadow: shadow ?? this.shadow,
@@ -85,6 +101,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surface: Color.lerp(surface, other.surface, t)!,
       surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
       elevated: Color.lerp(elevated, other.elevated, t)!,
+      input: Color.lerp(input, other.input, t)!,
       primaryText: Color.lerp(primaryText, other.primaryText, t)!,
       secondaryText: Color.lerp(secondaryText, other.secondaryText, t)!,
       tertiaryText: Color.lerp(tertiaryText, other.tertiaryText, t)!,
@@ -92,7 +109,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
       strongBorder: Color.lerp(strongBorder, other.strongBorder, t)!,
       accent: Color.lerp(accent, other.accent, t)!,
       accentSoft: Color.lerp(accentSoft, other.accentSoft, t)!,
+      accentText: Color.lerp(accentText, other.accentText, t)!,
+      primaryOnAccent: Color.lerp(primaryOnAccent, other.primaryOnAccent, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
+      dangerText: Color.lerp(dangerText, other.dangerText, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       shadow: Color.lerp(shadow, other.shadow, t)!,
@@ -103,58 +123,92 @@ class AppPalette extends ThemeExtension<AppPalette> {
 class AppColors {
   const AppColors._();
 
-  static const pureDark = AppPalette(
-    background: Color(0xFF000000),
-    surface: Color(0xFF080808),
-    surfaceMuted: Color(0xFF0D0D0F),
-    elevated: Color(0xFF151518),
-    primaryText: Colors.white,
-    secondaryText: Color(0xFFB0B0B8),
-    tertiaryText: Color(0xFF75757D),
-    border: Color(0x24FFFFFF),
-    strongBorder: Color(0x66FFFFFF),
-    accent: Color(0xFFD7DAE3),
-    accentSoft: Color(0x22FFFFFF),
-    danger: Color(0xFFFF5C7A),
-    success: Color(0xFF45D483),
-    warning: Color(0xFFFFC857),
+  static const caffeineDark = AppPalette(
+    background: Color(0xFF111111),
+    surface: Color(0xFF191919),
+    surfaceMuted: Color(0xFF222222),
+    elevated: Color(0xFF191919),
+    input: Color(0xFF484848),
+    primaryText: Color(0xFFEEEEEE),
+    secondaryText: Color(0xFFB4B4B4),
+    tertiaryText: Color(0xFF7F7F7F),
+    border: Color(0xFF201E18),
+    strongBorder: Color(0xFFFFE0C2),
+    accent: Color(0xFFFFE0C2),
+    accentSoft: Color(0xFF393028),
+    accentText: Color(0xFFEEEEEE),
+    primaryOnAccent: Color(0xFF081A1B),
+    danger: Color(0xFFE54D2E),
+    dangerText: Color(0xFFFFFFFF),
+    success: Color(0xFF67D09A),
+    warning: Color(0xFFFFD38A),
+    shadow: Color(0x52000000),
+  );
+
+  static const caffeineLight = AppPalette(
+    background: Color(0xFFF9F9F9),
+    surface: Color(0xFFFCFCFC),
+    surfaceMuted: Color(0xFFEFEFEF),
+    elevated: Color(0xFFFCFCFC),
+    input: Color(0xFFD8D8D8),
+    primaryText: Color(0xFF202020),
+    secondaryText: Color(0xFF646464),
+    tertiaryText: Color(0xFF8C8C8C),
+    border: Color(0xFFD8D8D8),
+    strongBorder: Color(0xFF644A40),
+    accent: Color(0xFF644A40),
+    accentSoft: Color(0xFFFFDFB5),
+    accentText: Color(0xFF202020),
+    primaryOnAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFE54D2E),
+    dangerText: Color(0xFFFFFFFF),
+    success: Color(0xFF2F7D4B),
+    warning: Color(0xFF986A1E),
+    shadow: Color(0x14000000),
+  );
+
+  static const monoDark = AppPalette(
+    background: Color(0xFF0A0A0A),
+    surface: Color(0xFF191919),
+    surfaceMuted: Color(0xFF262626),
+    elevated: Color(0xFF262626),
+    input: Color(0xFF525252),
+    primaryText: Color(0xFFFAFAFA),
+    secondaryText: Color(0xFFA1A1A1),
+    tertiaryText: Color(0xFF717171),
+    border: Color(0xFF383838),
+    strongBorder: Color(0xFF737373),
+    accent: Color(0xFF737373),
+    accentSoft: Color(0xFF404040),
+    accentText: Color(0xFFFAFAFA),
+    primaryOnAccent: Color(0xFFFAFAFA),
+    danger: Color(0xFFFF6467),
+    dangerText: Color(0xFF262626),
+    success: Color(0xFFB8F0C7),
+    warning: Color(0xFFE8D28A),
     shadow: Color(0x00000000),
   );
 
-  static const dark = AppPalette(
-    background: Color(0xFF10100F),
-    surface: Color(0xFF191917),
-    surfaceMuted: Color(0xFF22221F),
-    elevated: Color(0xFF292923),
-    primaryText: Colors.white,
-    secondaryText: Color(0xFFB5B3AC),
-    tertiaryText: Color(0xFF7E7B74),
-    border: Color(0x26FFFFFF),
-    strongBorder: Color(0x52FFFFFF),
-    accent: Color(0xFFBFC7FF),
-    accentSoft: Color(0x26BFC7FF),
-    danger: Color(0xFFFF5C7A),
-    success: Color(0xFF4BE18A),
-    warning: Color(0xFFFFCE5C),
-    shadow: Color(0x66000000),
-  );
-
-  static const white = AppPalette(
-    background: Color(0xFFF8F7F4),
+  static const monoLight = AppPalette(
+    background: Color(0xFFFFFFFF),
     surface: Color(0xFFFFFFFF),
-    surfaceMuted: Color(0xFFF0EFEB),
-    elevated: Color(0xFFEAE9E4),
-    primaryText: Color(0xFF16161B),
-    secondaryText: Color(0xFF64635E),
-    tertiaryText: Color(0xFF92908A),
-    border: Color(0x1F000000),
-    strongBorder: Color(0x52000000),
-    accent: Color(0xFF2D64D8),
-    accentSoft: Color(0x1A2D64D8),
-    danger: Color(0xFFE93355),
-    success: Color(0xFF15995A),
-    warning: Color(0xFFD99200),
-    shadow: Color(0x24000000),
+    surfaceMuted: Color(0xFFF5F5F5),
+    elevated: Color(0xFFFFFFFF),
+    input: Color(0xFFE5E5E5),
+    primaryText: Color(0xFF0A0A0A),
+    secondaryText: Color(0xFF717171),
+    tertiaryText: Color(0xFFA1A1A1),
+    border: Color(0xFFE5E5E5),
+    strongBorder: Color(0xFFA1A1A1),
+    accent: Color(0xFF737373),
+    accentSoft: Color(0xFFF5F5F5),
+    accentText: Color(0xFF171717),
+    primaryOnAccent: Color(0xFFFAFAFA),
+    danger: Color(0xFFE7000B),
+    dangerText: Color(0xFFF5F5F5),
+    success: Color(0xFF248A45),
+    warning: Color(0xFF8A6816),
+    shadow: Color(0x00000000),
   );
 }
 

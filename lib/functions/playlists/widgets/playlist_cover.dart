@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 
 class PlaylistCover extends StatelessWidget {
   const PlaylistCover({
@@ -19,8 +20,9 @@ class PlaylistCover extends StatelessWidget {
     final base = isFavorite
         ? context.palette.accent
         : _colorFromHex(colorHex) ?? context.palette.surfaceMuted;
+    final radius = context.themeTokens.coverRadius;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(size * 0.22),
+      borderRadius: BorderRadius.circular(radius),
       child: SizedBox(
         width: size,
         height: size,
@@ -31,7 +33,7 @@ class PlaylistCover extends StatelessWidget {
             DecoratedBox(
               decoration: BoxDecoration(
                 border: Border.all(color: context.palette.border),
-                borderRadius: BorderRadius.circular(size * 0.22),
+                borderRadius: BorderRadius.circular(radius),
               ),
             ),
             Icon(

@@ -7,6 +7,7 @@ import '../../../../core/services/files/setup_guide_opener.dart';
 import '../../../../core/widgets/app_scaffold.dart';
 import '../view_models/settings_view_model.dart';
 import '../widgets/online_library_section.dart';
+import '../widgets/settings_components.dart';
 
 class OnlineLibrarySettingsScreen extends ConsumerStatefulWidget {
   const OnlineLibrarySettingsScreen({super.key});
@@ -45,11 +46,13 @@ class _OnlineLibrarySettingsScreenState
     return AppScaffold(
       child: ListView(
         children: [
-          _SettingsSubHeader(
+          SettingsPageHeader(
             title: 'Online Library',
+            subtitle:
+                'Connect your own server for remote search and downloads.',
             onBack: () => context.pop(),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 28),
           OnlineLibrarySection(
             status: state.status,
             sources: state.sources,
@@ -57,6 +60,7 @@ class _OnlineLibrarySettingsScreenState
             checking: state.checking,
             clearingCache: state.clearingCache,
             clearingSongs: state.clearingSongs,
+            directUrlEnabled: state.settings.directUrlEnabled,
             httpWarning: state.httpWarning,
             onCheck: () => vm.saveUrl(_urlController.text),
             onClear: () async {
@@ -84,6 +88,7 @@ class _OnlineLibrarySettingsScreenState
                 await vm.clearServerSongs();
               }
             },
+            onDirectUrlChanged: vm.setDirectUrlEnabled,
             onOpenGuide: () async {
               await _opener.open(AppConfig.backendSetupRepoUrl);
               if (context.mounted) {
@@ -127,28 +132,5 @@ class _OnlineLibrarySettingsScreenState
           ),
         ) ??
         false;
-  }
-}
-
-class _SettingsSubHeader extends StatelessWidget {
-  const _SettingsSubHeader({required this.title, required this.onBack});
-
-  final String title;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Back',
-          onPressed: onBack,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-        ),
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.headlineLarge),
-        ),
-      ],
-    );
   }
 }

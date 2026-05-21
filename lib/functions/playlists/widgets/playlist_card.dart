@@ -25,13 +25,14 @@ class PlaylistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final tokens = context.themeTokens;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Material(
         color: active ? palette.accentSoft : palette.surface,
-        borderRadius: BorderRadius.circular(AppRadii.row),
+        borderRadius: BorderRadius.circular(tokens.rowRadius),
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadii.row),
+          borderRadius: BorderRadius.circular(tokens.rowRadius),
           onTap: () {
             HapticFeedback.selectionClick();
             onTap();
@@ -39,7 +40,7 @@ class PlaylistCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadii.row),
+              borderRadius: BorderRadius.circular(tokens.rowRadius),
               border: Border.all(
                 color: active ? palette.strongBorder : palette.border,
               ),
@@ -47,8 +48,8 @@ class PlaylistCard extends StatelessWidget {
                   ? [
                       BoxShadow(
                         color: palette.shadow,
-                        blurRadius: 22,
-                        offset: const Offset(0, 8),
+                        blurRadius: tokens.shadowBlur,
+                        offset: tokens.shadowOffset,
                       ),
                     ]
                   : null,

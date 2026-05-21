@@ -113,6 +113,20 @@ void main() {
     expect(saved.shareWithText, isTrue);
     expect(vm.state.settings.shareWithText, isTrue);
   });
+
+  test('saves direct URL preference', () async {
+    final vm = SettingsViewModel(
+      theme,
+      startup,
+      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+    );
+
+    await vm.setDirectUrlEnabled(true);
+    final saved = await settingsRepository.load();
+
+    expect(saved.directUrlEnabled, isTrue);
+    expect(vm.state.settings.directUrlEnabled, isTrue);
+  });
 }
 
 class _FakeBackendRepository extends BackendRepository {

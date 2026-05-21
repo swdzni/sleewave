@@ -151,6 +151,21 @@ void main() {
 
     expect(sentOptions.method, 'GET');
     expect(sentOptions.path, '/stream/stable-track');
+    expect(sentOptions.queryParameters, isEmpty);
+  });
+
+  test('stream can request direct provider URLs', () async {
+    late RequestOptions sentOptions;
+    final repository = _repository((options) {
+      sentOptions = options;
+      return ResponseBody.fromBytes(const [1, 2, 3], 200);
+    });
+
+    await repository.openStream('stable-track', directUrl: true);
+
+    expect(sentOptions.method, 'GET');
+    expect(sentOptions.path, '/stream/stable-track');
+    expect(sentOptions.queryParameters, {'direct_url': true});
   });
 
   test('stream sends HTTP range header when requested', () async {
@@ -189,6 +204,27 @@ void main() {
     expect(sentOptions.queryParameters, {'device_id': 'device-one'});
     expect(response.bytes, const [1, 2, 3]);
     expect(response.filename, 'Stable Song.mp3');
+  });
+
+  test('download can request direct provider URLs', () async {
+    late RequestOptions sentOptions;
+    final repository = _repository((options) {
+      sentOptions = options;
+      return const [1, 2, 3];
+    });
+
+    await repository.downloadTrack(
+      resultId: 'stable-track',
+      deviceId: 'device-one',
+      directUrl: true,
+    );
+
+    expect(sentOptions.method, 'GET');
+    expect(sentOptions.path, '/download/stable-track');
+    expect(sentOptions.queryParameters, {
+      'device_id': 'device-one',
+      'direct_url': true,
+    });
   });
 }
 

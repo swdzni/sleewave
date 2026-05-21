@@ -8,15 +8,22 @@ class BackendStreamAudioSource extends StreamAudioSource {
   BackendStreamAudioSource({
     required this.backend,
     required this.resultId,
+    required this.directUrl,
     super.tag,
   });
 
   final BackendRepository backend;
   final String resultId;
+  final bool directUrl;
 
   @override
   Future<StreamAudioResponse> request([int? start, int? end]) async {
-    final response = await backend.openStream(resultId, start: start, end: end);
+    final response = await backend.openStream(
+      resultId,
+      start: start,
+      end: end,
+      directUrl: directUrl,
+    );
     final headers = response.headers;
     final contentLength = int.tryParse(headers.value('content-length') ?? '');
     final contentRange = _parseContentRange(headers.value('content-range'));

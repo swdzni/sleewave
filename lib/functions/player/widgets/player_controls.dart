@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/glow_theme.dart';
 import '../../../core/widgets/glow_button.dart';
 import '../view_models/player_view_model.dart';
 import 'playback_mode_button.dart';
@@ -13,6 +16,11 @@ class PlayerControls extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vm = ref.watch(playerViewModelProvider);
     final snapshot = vm.state.snapshot;
+    final playbackAccent = GlowTheme.playbackAccent(
+      mode: ref.watch(themeControllerProvider).settings.glowMode,
+      track: snapshot.currentTrack,
+      fallback: context.palette.accent,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -29,6 +37,7 @@ class PlayerControls extends ConsumerWidget {
               ? Icons.pause_rounded
               : Icons.play_arrow_rounded,
           active: true,
+          accentColor: playbackAccent,
           onPressed: vm.togglePlayPause,
           semanticLabel: snapshot.isPlaying ? 'Pause' : 'Play',
         ),

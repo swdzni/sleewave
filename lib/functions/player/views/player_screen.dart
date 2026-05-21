@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/cover_art.dart';
 import '../../../core/widgets/track_badges.dart';
 import '../view_models/player_view_model.dart';
@@ -27,6 +28,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final snapshot = vm.state.snapshot;
     final track = snapshot.currentTrack;
     final displayedPosition = _dragPosition ?? snapshot.position;
+    final tokens = context.themeTokens;
     return SwipeDismissLayer(
       onDismiss: context.pop,
       child: Scaffold(
@@ -114,7 +116,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   coverUrl: track.coverUrl,
                                   localCoverPath: track.localCoverPath,
                                   size: 300,
-                                  borderRadius: 24,
+                                  borderRadius: tokens.coverRadius,
                                 ),
                               ),
                             ),

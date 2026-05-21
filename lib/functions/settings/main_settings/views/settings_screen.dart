@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/models/app_settings.dart';
 import '../../../../core/models/server_status.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_scaffold.dart';
 import '../view_models/settings_view_model.dart';
+import '../widgets/settings_components.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -29,44 +30,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return AppScaffold(
       child: ListView(
         children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: 'Close',
-                onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    context.go('/home');
-                  }
-                },
-                icon: const Icon(Icons.close_rounded),
-              ),
-              Expanded(
-                child: Text(
-                  'Settings',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-              ),
-            ],
+          SettingsPageHeader(
+            title: 'Settings',
+            subtitle: 'Tune the app, your device identity, and Online Library.',
+            onBack: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+            backIcon: Icons.close_rounded,
           ),
-          const SizedBox(height: 18),
-          _SettingsGroup(
+          const SizedBox(height: 28),
+          SettingsSection(
             title: 'Appearance',
             children: [
-              _SettingsRow(
+              SettingsRow(
                 icon: Icons.palette_rounded,
                 title: 'Theme',
                 subtitle: _themeModeLabel(state.settings.themeMode),
+                trailing: _ThemePreview(mode: state.settings.themeMode),
                 onTap: () => context.push('/settings/appearance'),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _SettingsGroup(
+          SettingsSection(
             title: 'Connections',
             children: [
-              _SettingsRow(
+              SettingsRow(
                 icon: Icons.cloud_queue_rounded,
                 title: 'Online Library',
                 subtitle: state.status.label,
@@ -75,11 +67,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _SettingsGroup(
+          SettingsSection(
             title: 'Device',
             children: [
-              _SettingsRow(
+              SettingsRow(
                 icon: Icons.phone_iphone_rounded,
                 title: 'Device name',
                 subtitle: state.settings.deviceId,
@@ -87,13 +78,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _SettingsGroup(
-            title: 'Other',
+          SettingsSection(
+            title: 'General',
+            subtitle: 'History and sharing preferences.',
             children: [
-              _SettingsRow(
-                icon: Icons.history_rounded,
-                title: 'Recently played',
+              SettingsRow(
+                icon: Icons.tune_rounded,
+                title: 'General preferences',
                 subtitle:
                     '${state.settings.recentHistoryLimit} tracks · Share text ${state.settings.shareWithText ? 'on' : 'off'}',
                 onTap: () => context.push('/settings/other'),
@@ -108,71 +99,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 String _themeModeLabel(SleewaveThemeMode mode) {
   return switch (mode) {
-    SleewaveThemeMode.pureDark => 'Pure Dark',
-    SleewaveThemeMode.dark => 'Dark',
-    SleewaveThemeMode.white => 'White',
+    SleewaveThemeMode.caffeineDark => 'Caffeine Dark',
+    SleewaveThemeMode.caffeineLight => 'Caffeine Light',
+    SleewaveThemeMode.monoDark => 'Mono Dark',
+    SleewaveThemeMode.monoLight => 'Mono Light',
   };
-}
-
-class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-        ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.palette.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppRadii.row),
-            border: Border.all(color: context.palette.border),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing:
-          trailing ??
-          Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 16,
-            color: context.palette.secondaryText,
-          ),
-      onTap: onTap,
-    );
-  }
 }
 
 class _StatusDot extends StatelessWidget {
@@ -193,5 +124,46 @@ class _StatusDot extends StatelessWidget {
       ServerStatusKind.unknown ||
       ServerStatusKind.checking => context.palette.warning,
     };
+  }
+}
+
+class _ThemePreview extends StatelessWidget {
+  const _ThemePreview({required this.mode});
+
+  final SleewaveThemeMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppTheme.paletteFor(mode);
+    final tokens = AppTheme.tokensFor(mode);
+    final colors = [
+      palette.background,
+      palette.surface,
+      palette.accent,
+      palette.success,
+      palette.warning,
+      palette.danger,
+    ];
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final color in colors)
+          Container(
+            width: 14,
+            height: 14,
+            margin: const EdgeInsets.only(left: 3),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(tokens.previewRadius / 2),
+              border: Border.all(color: context.palette.border),
+            ),
+          ),
+        Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: 16,
+          color: context.palette.secondaryText,
+        ),
+      ],
+    );
   }
 }

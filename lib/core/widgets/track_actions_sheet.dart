@@ -85,7 +85,7 @@ class _TrackActionsSheet extends StatelessWidget {
                 coverUrl: track.coverUrl,
                 localCoverPath: track.localCoverPath,
                 size: 58,
-                borderRadius: 14,
+                borderRadius: context.themeTokens.coverRadius,
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -46,4 +46,27 @@ void main() {
     expect(defaults.shareWithText, isFalse);
     expect(updated.shareWithText, isTrue);
   });
+
+  test('direct URLs are opt-in and copyable', () {
+    final defaults = AppSettings.defaults();
+    final updated = defaults.copyWith(directUrlEnabled: true);
+
+    expect(defaults.directUrlEnabled, isFalse);
+    expect(updated.directUrlEnabled, isTrue);
+  });
+
+  test('maps legacy theme names to new palette modes', () {
+    expect(
+      SleewaveThemeMode.fromStorage('dark'),
+      SleewaveThemeMode.caffeineDark,
+    );
+    expect(
+      SleewaveThemeMode.fromStorage('white'),
+      SleewaveThemeMode.caffeineLight,
+    );
+    expect(
+      SleewaveThemeMode.fromStorage('pureDark'),
+      SleewaveThemeMode.monoDark,
+    );
+  });
 }

@@ -11,6 +11,7 @@ class BottomSheetShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.viewInsetsOf(context);
+    final tokens = context.themeTokens;
     return AnimatedPadding(
       duration: AppDurations.state,
       curve: AppCurves.standard,
@@ -18,8 +19,8 @@ class BottomSheetShell extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: context.palette.elevated,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppRadii.sheet),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(tokens.sheetRadius),
           ),
           border: Border.all(color: context.palette.border),
           boxShadow: context.palette.shadow.a == 0
@@ -27,8 +28,8 @@ class BottomSheetShell extends StatelessWidget {
               : [
                   BoxShadow(
                     color: context.palette.shadow,
-                    blurRadius: 32,
-                    offset: const Offset(0, -8),
+                    blurRadius: tokens.shadowBlur + 14,
+                    offset: -tokens.shadowOffset,
                   ),
                 ],
         ),

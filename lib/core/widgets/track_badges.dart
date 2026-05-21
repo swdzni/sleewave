@@ -12,11 +12,19 @@ class TrackBadges extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badges = <Widget>[];
-    if (track.isLocalPlayable || track.isDownloaded) {
+    if (track.isDownloaded) {
       badges.add(
         const _Badge(
           label: 'Downloaded',
           icon: Icons.check_circle_rounded,
+          tone: _BadgeTone.success,
+        ),
+      );
+    } else if (track.isLocalPlayable) {
+      badges.add(
+        const _Badge(
+          label: 'Local',
+          icon: Icons.library_music_rounded,
           tone: _BadgeTone.success,
         ),
       );
@@ -51,6 +59,7 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final tokens = context.themeTokens;
     final color = switch (tone) {
       _BadgeTone.success => palette.success,
       _BadgeTone.accent => palette.accent,
@@ -60,7 +69,7 @@ class _Badge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppRadii.chip),
+        borderRadius: BorderRadius.circular(tokens.chipRadius),
         border: Border.all(color: palette.border),
       ),
       child: Row(

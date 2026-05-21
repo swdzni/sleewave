@@ -8,6 +8,7 @@ import '../../../core/widgets/bottom_sheet_shell.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/cover_art.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../player/view_models/player_view_model.dart';
 
 class AddToPlaylistSheet extends ConsumerStatefulWidget {
@@ -220,11 +221,12 @@ class _TrackPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final tokens = context.themeTokens;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(tokens.rowRadius),
         border: Border.all(color: palette.border),
       ),
       child: Row(
@@ -233,7 +235,7 @@ class _TrackPreview extends StatelessWidget {
             coverUrl: track.coverUrl,
             localCoverPath: track.localCoverPath,
             size: 42,
-            borderRadius: 12,
+            borderRadius: tokens.coverRadius,
           ),
           const SizedBox(width: 10),
           Expanded(

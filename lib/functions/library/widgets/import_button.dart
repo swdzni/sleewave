@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/app_action_button.dart';
+
 class ImportButton extends StatelessWidget {
   const ImportButton({super.key, required this.onPressed});
 
@@ -7,10 +9,11 @@ class ImportButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(
+    return AppActionButton(
+      filled: true,
       onPressed: onPressed,
-      icon: const Icon(Icons.file_upload_rounded),
-      label: const Text('Import'),
+      icon: Icons.file_upload_rounded,
+      label: 'Import',
     );
   }
 }

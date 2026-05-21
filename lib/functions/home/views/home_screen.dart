@@ -47,6 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .status
         .isConnected;
     final downloadProgress = ref.watch(downloadServiceProvider).progress;
+    final tokens = context.themeTokens;
     return AppScaffold(
       safeBottom: false,
       child: RefreshIndicator(
@@ -96,7 +97,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           playbackSnapshot.activePlaylistId == playlist.id;
                       return InkWell(
                         onTap: () => context.push('/playlists/${playlist.id}'),
-                        borderRadius: BorderRadius.circular(AppRadii.row),
+                        borderRadius: BorderRadius.circular(tokens.rowRadius),
                         child: Container(
                           width: 160,
                           padding: const EdgeInsets.all(12),
@@ -104,7 +105,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             color: active
                                 ? context.palette.accentSoft
                                 : context.palette.surface,
-                            borderRadius: BorderRadius.circular(AppRadii.row),
+                            borderRadius: BorderRadius.circular(
+                              tokens.rowRadius,
+                            ),
                             border: Border.all(
                               color: active
                                   ? context.palette.strongBorder
@@ -156,7 +159,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     for (final track in state.recentTracks.take(3))
                       SongCard(
                         track: track,
-                        mode: SongCardMode.compact,
                         isPlaying: currentTrackId == track.id,
                         onlineAvailable: onlineAvailable,
                         onTap: () =>
@@ -300,6 +302,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
       notifyLibraryChangedFromWidget(ref);
     } on ApiException catch (error) {
+      await _refreshHomeIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Download failed. Try again.');
@@ -321,6 +324,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             backend: ref.read(backendRepositoryProvider),
           );
     } on ApiException catch (error) {
+      await _refreshHomeIfTrackExpired(error);
       _showMessage(error.message);
     } catch (error) {
       _showMessage(error.toString());
@@ -350,10 +354,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       notifyLibraryChangedFromWidget(ref);
       _showMessage(result.message);
     } on ApiException catch (error) {
+      await _refreshHomeIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Could not delete from server.');
     }
+  }
+
+  Future<void> _refreshHomeIfTrackExpired(ApiException error) async {
+    if (!error.needsTrackRefresh) {
+      return;
+    }
+    await ref
+        .read(appStartupControllerProvider)
+        .refreshBackend(keepConnectedStatus: true);
+    await ref.read(homeViewModelProvider).load();
   }
 
   void _showMessage(String message) {

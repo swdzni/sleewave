@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_tokens.dart';
 
 class CoverArt extends StatelessWidget {
   const CoverArt({
@@ -21,7 +22,9 @@ class CoverArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(borderRadius);
+    final radius = BorderRadius.circular(
+      borderRadius == 10 ? context.themeTokens.coverRadius : borderRadius,
+    );
     Widget child;
     if (localCoverPath != null && File(localCoverPath!).existsSync()) {
       child = Image.file(File(localCoverPath!), fit: BoxFit.cover);

@@ -16,6 +16,7 @@ class GlowButton extends StatefulWidget {
     this.semanticLabel,
     this.onLongPressStart,
     this.onLongPressEnd,
+    this.accentColor,
   });
 
   final IconData icon;
@@ -26,6 +27,7 @@ class GlowButton extends StatefulWidget {
   final String? semanticLabel;
   final VoidCallback? onLongPressStart;
   final VoidCallback? onLongPressEnd;
+  final Color? accentColor;
 
   @override
   State<GlowButton> createState() => _GlowButtonState();
@@ -38,7 +40,9 @@ class _GlowButtonState extends State<GlowButton> {
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null && !widget.loading;
     final palette = context.palette;
-    final color = widget.active ? palette.accent : palette.surfaceMuted;
+    final tokens = context.themeTokens;
+    final accentColor = widget.accentColor ?? palette.accent;
+    final color = widget.active ? accentColor : palette.surfaceMuted;
     return Semantics(
       button: true,
       label: widget.semanticLabel ?? widget.label,
@@ -79,7 +83,7 @@ class _GlowButtonState extends State<GlowButton> {
               color: enabled
                   ? color
                   : palette.surfaceMuted.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(AppRadii.control),
+              borderRadius: BorderRadius.circular(tokens.controlRadius),
               border: Border.all(
                 color: widget.active ? palette.strongBorder : palette.border,
               ),

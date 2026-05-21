@@ -4,7 +4,8 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/models/server_status.dart';
 import '../../../../core/models/source_info.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/app_action_button.dart';
+import 'settings_components.dart';
 
 class OnlineLibrarySection extends StatelessWidget {
   const OnlineLibrarySection({
@@ -15,11 +16,13 @@ class OnlineLibrarySection extends StatelessWidget {
     required this.checking,
     required this.clearingCache,
     required this.clearingSongs,
+    required this.directUrlEnabled,
     required this.httpWarning,
     required this.onCheck,
     required this.onClear,
     required this.onClearCache,
     required this.onClearSongs,
+    required this.onDirectUrlChanged,
     required this.onOpenGuide,
   });
 
@@ -29,11 +32,13 @@ class OnlineLibrarySection extends StatelessWidget {
   final bool checking;
   final bool clearingCache;
   final bool clearingSongs;
+  final bool directUrlEnabled;
   final bool httpWarning;
   final VoidCallback onCheck;
   final VoidCallback onClear;
   final VoidCallback onClearCache;
   final VoidCallback onClearSongs;
+  final ValueChanged<bool> onDirectUrlChanged;
   final VoidCallback onOpenGuide;
 
   @override
@@ -41,134 +46,131 @@ class OnlineLibrarySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Online Library', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: context.palette.surfaceMuted,
-            borderRadius: BorderRadius.circular(AppRadii.row),
-            border: Border.all(color: context.palette.border),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.circle, size: 12, color: _statusColor(context)),
-              const SizedBox(width: 10),
-              Expanded(child: Text(status.label)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Sleewave works offline. You can optionally connect your own Online Library server.\n\n'
-          '1. Prepare a server or VPS.\n'
-          '2. Clone and run the Sleewave backend on your server.\n'
-          '3. Paste your server link here.\n'
-          '4. Press Save.',
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: onOpenGuide,
-          icon: const Icon(Icons.open_in_new_rounded),
-          label: const Text('Open setup guide'),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          AppConfig.backendSetupRepoUrl,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: urlController,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            labelText: 'Server URL',
-            hintText: 'http://127.0.0.1:8000',
-          ),
-        ),
-        if (httpWarning)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'HTTPS is recommended for remote servers.',
-              style: TextStyle(color: context.palette.warning),
+        SettingsSection(
+          title: 'Connection',
+          subtitle: 'Sleewave works offline. Online Library is optional.',
+          children: [
+            SettingsRow(
+              icon: Icons.circle,
+              title: 'Status',
+              subtitle: status.label,
+              trailing: Icon(
+                Icons.circle,
+                size: 12,
+                color: _statusColor(context),
+              ),
             ),
-          ),
-        const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: TextField(
+                controller: urlController,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'Server URL',
+                  hintText: 'http://127.0.0.1:8000',
+                ),
+              ),
+            ),
+            if (httpWarning)
+              SettingsRow(
+                icon: Icons.warning_amber_rounded,
+                title: 'HTTPS recommended',
+                subtitle: 'Use HTTPS for remote servers when possible.',
+                trailing: Icon(
+                  Icons.lock_open_rounded,
+                  color: context.palette.warning,
+                ),
+              ),
+            SettingsRow(
+              icon: Icons.link_rounded,
+              title: 'Direct URLs',
+              subtitle:
+                  'Allow provider redirects for uncached streams and downloads.',
+              trailing: Switch(
+                value: directUrlEnabled,
+                onChanged: onDirectUrlChanged,
+              ),
+            ),
+          ],
+        ),
+        SettingsSection(
+          title: 'Setup',
+          subtitle: 'Prepare a server, run the backend, then paste the link.',
+          children: [
+            SettingsRow(
+              icon: Icons.open_in_new_rounded,
+              title: 'Open setup guide',
+              subtitle: AppConfig.backendSetupRepoUrl,
+              onTap: onOpenGuide,
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            ),
+          ],
+        ),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            FilledButton.icon(
+            AppActionButton(
               onPressed: checking ? null : onCheck,
-              icon: checking
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.wifi_tethering_rounded),
-              label: const Text('Save'),
+              icon: Icons.save_rounded,
+              label: 'Save',
+              filled: true,
+              loading: checking,
             ),
-            OutlinedButton.icon(
+            AppActionButton(
               onPressed: onClear,
-              icon: const Icon(Icons.clear_rounded),
-              label: const Text('Clear'),
+              icon: Icons.clear_rounded,
+              label: 'Clear',
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (status.isConnected) ...[
-          Text(
-            'Server cleanup',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+        const SizedBox(height: 24),
+        if (status.isConnected)
+          SettingsSection(
+            title: 'Server cleanup',
+            subtitle: 'Destructive actions for server-side cached content.',
             children: [
-              OutlinedButton.icon(
-                onPressed: clearingCache ? null : onClearCache,
+              SettingsRow(
                 icon: clearingCache
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cleaning_services_rounded),
-                label: const Text('Clear cache'),
+                    ? Icons.hourglass_top_rounded
+                    : Icons.cleaning_services_rounded,
+                title: 'Clear cache',
+                subtitle: 'Remove cached audio files from the server.',
+                onTap: clearingCache ? null : onClearCache,
               ),
-              OutlinedButton.icon(
-                onPressed: clearingSongs ? null : onClearSongs,
+              SettingsRow(
                 icon: clearingSongs
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.delete_sweep_rounded),
-                label: const Text('Clear all songs'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: context.palette.danger,
-                ),
+                    ? Icons.hourglass_top_rounded
+                    : Icons.delete_sweep_rounded,
+                title: 'Clear all songs',
+                subtitle: 'Clear server catalog and device-library records.',
+                onTap: clearingSongs ? null : onClearSongs,
+                danger: true,
               ),
             ],
           ),
-          const SizedBox(height: 12),
-        ],
-        for (final source in sources)
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-            leading: Icon(
-              source.canSearch
-                  ? Icons.check_circle_rounded
-                  : Icons.block_rounded,
-              color: source.canSearch
-                  ? context.palette.success
-                  : context.palette.secondaryText,
-            ),
-            title: Text(source.name),
-            subtitle: Text(source.canSearch ? 'Available' : 'Unavailable'),
-            enabled: source.available,
+        if (sources.isNotEmpty)
+          SettingsSection(
+            title: 'Sources',
+            subtitle: 'Available search providers reported by your server.',
+            children: [
+              for (final source in sources)
+                SettingsRow(
+                  icon: source.canSearch
+                      ? Icons.check_circle_rounded
+                      : Icons.block_rounded,
+                  title: source.name,
+                  subtitle: source.canSearch ? 'Available' : 'Unavailable',
+                  trailing: Icon(
+                    source.canSearch
+                        ? Icons.search_rounded
+                        : Icons.not_interested_rounded,
+                    color: source.canSearch
+                        ? context.palette.success
+                        : context.palette.secondaryText,
+                  ),
+                ),
+            ],
           ),
       ],
     );

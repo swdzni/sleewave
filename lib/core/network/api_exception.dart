@@ -88,6 +88,9 @@ class ApiException implements Exception {
   final Map<String, dynamic> details;
   final bool isRecoverable;
 
+  bool get needsTrackRefresh =>
+      code == 'search_result_not_found' || code == 'cache_entry_not_found';
+
   static String _friendlyMessage(String code, String fallback) {
     switch (code) {
       case 'bad_request':

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'settings_components.dart';
+
 class DeviceSection extends StatelessWidget {
   const DeviceSection({super.key, required this.deviceController});
 
@@ -7,11 +9,10 @@ class DeviceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsSection(
+      title: 'Device identity',
+      subtitle: 'Used to distinguish this device when syncing with a server.',
       children: [
-        Text('Device', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
         TextField(
           controller: deviceController,
           decoration: const InputDecoration(labelText: 'Device name'),

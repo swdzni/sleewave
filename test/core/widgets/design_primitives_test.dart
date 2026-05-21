@@ -73,7 +73,7 @@ void main() {
 
 Widget _wrap(Widget child) {
   return MaterialApp(
-    theme: AppTheme.fromMode(SleewaveThemeMode.dark),
+    theme: AppTheme.fromMode(SleewaveThemeMode.caffeineDark),
     home: Scaffold(body: Center(child: child)),
   );
 }

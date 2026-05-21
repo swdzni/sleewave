@@ -24,6 +24,7 @@ class AppAlert extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final tokens = context.themeTokens;
     final color = switch (variant) {
       AppAlertVariant.info => palette.accent,
       AppAlertVariant.success => palette.success,
@@ -36,7 +37,7 @@ class AppAlert extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppRadii.row),
+        borderRadius: BorderRadius.circular(tokens.rowRadius),
         border: Border.all(color: color.withValues(alpha: 0.34)),
       ),
       child: Row(

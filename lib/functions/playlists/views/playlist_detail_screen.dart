@@ -231,6 +231,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       }
       notifyLibraryChangedFromWidget(ref);
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Download failed. Try again.');
@@ -253,6 +254,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             backend: ref.read(backendRepositoryProvider),
           );
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _showMessage(error.message);
     } catch (error) {
       _showMessage(error.toString());
@@ -283,10 +285,21 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       notifyLibraryChangedFromWidget(ref);
       _showMessage(result.message);
     } on ApiException catch (error) {
+      await _refreshBackendIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Could not delete from server.');
     }
+  }
+
+  Future<void> _refreshBackendIfTrackExpired(ApiException error) async {
+    if (!error.needsTrackRefresh) {
+      return;
+    }
+    await ref
+        .read(appStartupControllerProvider)
+        .refreshBackend(keepConnectedStatus: true);
+    await ref.read(playlistDetailViewModelProvider(widget.playlistId)).load();
   }
 
   void _showMessage(String message) {

@@ -61,6 +61,7 @@ class SongCard extends StatelessWidget {
         (!track.isLocalPlayable && canDownload && onDownload != null);
     final onEffectiveTap = playable ? onTap : null;
     final palette = context.palette;
+    final tokens = context.themeTokens;
     return Semantics(
       button: playable,
       enabled: playable,
@@ -83,7 +84,7 @@ class SongCard extends StatelessWidget {
                 coverUrl: track.coverUrl,
                 localCoverPath: track.localCoverPath,
                 size: coverSize,
-                borderRadius: 12,
+                borderRadius: tokens.coverRadius,
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_scaffold.dart';
 import '../view_models/settings_view_model.dart';
 import '../widgets/appearance_section.dart';
+import '../widgets/settings_components.dart';
 
 class AppearanceSettingsScreen extends ConsumerStatefulWidget {
   const AppearanceSettingsScreen({super.key});
@@ -29,8 +30,12 @@ class _AppearanceSettingsScreenState
     return AppScaffold(
       child: ListView(
         children: [
-          _SettingsSubHeader(title: 'Appearance', onBack: () => context.pop()),
-          const SizedBox(height: 18),
+          SettingsPageHeader(
+            title: 'Appearance',
+            subtitle: 'Pick a palette and motion behavior.',
+            onBack: () => context.pop(),
+          ),
+          const SizedBox(height: 28),
           AppearanceSection(
             themeMode: state.settings.themeMode,
             glowMode: state.settings.glowMode,
@@ -39,29 +44,6 @@ class _AppearanceSettingsScreenState
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SettingsSubHeader extends StatelessWidget {
-  const _SettingsSubHeader({required this.title, required this.onBack});
-
-  final String title;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Back',
-          onPressed: onBack,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-        ),
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.headlineLarge),
-        ),
-      ],
     );
   }
 }

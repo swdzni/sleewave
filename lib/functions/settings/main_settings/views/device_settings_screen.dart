@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/app_scaffold.dart';
 import '../view_models/settings_view_model.dart';
 import '../widgets/device_section.dart';
+import '../widgets/settings_components.dart';
 
 class DeviceSettingsScreen extends ConsumerStatefulWidget {
   const DeviceSettingsScreen({super.key});
@@ -42,8 +43,12 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
     return AppScaffold(
       child: ListView(
         children: [
-          _SettingsSubHeader(title: 'Device', onBack: () => context.pop()),
-          const SizedBox(height: 18),
+          SettingsPageHeader(
+            title: 'Device',
+            subtitle: 'Name this install for library and server actions.',
+            onBack: () => context.pop(),
+          ),
+          const SizedBox(height: 28),
           DeviceSection(deviceController: _deviceController),
           const SizedBox(height: 14),
           Wrap(
@@ -70,29 +75,6 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _SettingsSubHeader extends StatelessWidget {
-  const _SettingsSubHeader({required this.title, required this.onBack});
-
-  final String title;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Back',
-          onPressed: onBack,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-        ),
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.headlineLarge),
-        ),
-      ],
     );
   }
 }

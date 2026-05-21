@@ -6,6 +6,7 @@ import '../../../core/app_startup_controller.dart';
 import '../../../core/models/track.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
+import '../../../core/widgets/app_action_button.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
@@ -91,7 +92,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
+                AppActionButton(
                   onPressed:
                       _loading ||
                           !onlineAvailable ||
@@ -100,18 +101,12 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
                           _downloadingAllFromServer
                       ? null
                       : _confirmDeleteAllFromServer,
-                  icon: _deletingAllFromServer
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.delete_sweep_rounded),
-                  label: const Text('Delete all from server'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                  ),
+                  icon: Icons.delete_sweep_rounded,
+                  label: 'Delete all from server',
+                  danger: true,
+                  loading: _deletingAllFromServer,
                 ),
-                FilledButton.icon(
+                AppActionButton(
                   onPressed:
                       _loading ||
                           !onlineAvailable ||
@@ -120,13 +115,10 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
                           _downloadingAllFromServer
                       ? null
                       : _downloadAllFromServer,
-                  icon: _downloadingAllFromServer
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.download_rounded),
-                  label: const Text('Download all from server'),
+                  icon: Icons.download_rounded,
+                  label: 'Download all from server',
+                  filled: true,
+                  loading: _downloadingAllFromServer,
                 ),
               ],
             ),
@@ -252,6 +244,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       }
       notifyLibraryChangedFromWidget(ref);
     } on ApiException catch (error) {
+      await _refreshServerIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Download failed. Try again.');
@@ -292,6 +285,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       notifyLibraryChangedFromWidget(ref);
       _showMessage(result.message);
     } on ApiException catch (error) {
+      await _refreshServerIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
       _showMessage('Could not delete from server.');
@@ -391,7 +385,8 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
             downloaded++;
             _replaceTrack(updated);
           }
-        } on ApiException {
+        } on ApiException catch (error) {
+          await _refreshServerIfTrackExpired(error);
           failed++;
         } catch (_) {
           failed++;
@@ -437,6 +432,22 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
         for (final track in _tracks) track.id == updated.id ? updated : track,
       ];
     });
+  }
+
+  Future<void> _refreshServerIfTrackExpired(ApiException error) async {
+    if (!_isRefreshNeeded(error)) {
+      return;
+    }
+    await ref
+        .read(appStartupControllerProvider)
+        .refreshBackend(keepConnectedStatus: true);
+    if (mounted && widget.kind == HomeCollectionKind.server) {
+      await _load();
+    }
+  }
+
+  bool _isRefreshNeeded(ApiException error) {
+    return error.needsTrackRefresh;
   }
 
   Future<void> _shareTrack(Track track) async {

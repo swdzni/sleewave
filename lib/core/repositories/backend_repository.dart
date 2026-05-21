@@ -74,10 +74,12 @@ class BackendRepository {
     String resultId, {
     int? start,
     int? end,
+    bool directUrl = false,
   }) {
     final range = _rangeHeader(start, end);
     return _apiClient.getStream(
       ApiPaths.stream(resultId),
+      queryParameters: directUrl ? const {'direct_url': true} : null,
       headers: range == null ? null : {'Range': range},
     );
   }
@@ -85,11 +87,15 @@ class BackendRepository {
   Future<DownloadResponse> downloadTrack({
     required String resultId,
     required String deviceId,
+    bool directUrl = false,
     ProgressCallback? onProgress,
   }) async {
     final response = await _apiClient.getBytes(
       ApiPaths.download(resultId),
-      queryParameters: {'device_id': deviceId},
+      queryParameters: {
+        'device_id': deviceId,
+        if (directUrl) 'direct_url': true,
+      },
       onReceiveProgress: onProgress,
     );
     return DownloadResponse(

@@ -36,6 +36,7 @@ class DownloadService extends SafeChangeNotifier {
       final response = await backend.downloadTrack(
         resultId: track.resultId!,
         deviceId: settings.deviceId,
+        directUrl: settings.directUrlEnabled,
         onProgress: (received, total) {
           if (total > 0) {
             _progress[track.id] = received / total;

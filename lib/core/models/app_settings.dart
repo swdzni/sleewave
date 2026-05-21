@@ -3,15 +3,19 @@ import 'dart:math';
 import '../constants/app_constants.dart';
 
 enum SleewaveThemeMode {
-  pureDark,
-  dark,
-  white;
+  caffeineDark,
+  caffeineLight,
+  monoDark,
+  monoLight;
 
   static SleewaveThemeMode fromStorage(String? value) {
-    return SleewaveThemeMode.values.firstWhere(
-      (mode) => mode.name == value,
-      orElse: () => SleewaveThemeMode.dark,
-    );
+    return switch (value) {
+      'pureDark' || 'monoDark' => SleewaveThemeMode.monoDark,
+      'dark' || 'caffeineDark' => SleewaveThemeMode.caffeineDark,
+      'white' || 'caffeineLight' => SleewaveThemeMode.caffeineLight,
+      'monoLight' => SleewaveThemeMode.monoLight,
+      _ => SleewaveThemeMode.caffeineDark,
+    };
   }
 }
 
@@ -29,7 +33,7 @@ enum GlowMode {
 
 class AppSettings {
   AppSettings({
-    this.themeMode = SleewaveThemeMode.dark,
+    this.themeMode = SleewaveThemeMode.caffeineDark,
     this.glowMode = GlowMode.static,
     this.backendBaseUrl,
     required this.deviceId,
@@ -37,6 +41,7 @@ class AppSettings {
     this.searchLimit = AppConstants.defaultSearchLimit,
     int recentHistoryLimit = AppConstants.defaultRecentHistoryLimit,
     this.shareWithText = false,
+    this.directUrlEnabled = false,
   }) : recentHistoryLimit = recentHistoryLimit.clamp(
          AppConstants.minRecentHistoryLimit,
          AppConstants.maxRecentHistoryLimit,
@@ -54,6 +59,7 @@ class AppSettings {
   final int searchLimit;
   final int recentHistoryLimit;
   final bool shareWithText;
+  final bool directUrlEnabled;
 
   static String generateDeviceId({Random? random}) {
     final source = random ?? Random.secure();
@@ -116,6 +122,7 @@ class AppSettings {
     int? searchLimit,
     int? recentHistoryLimit,
     bool? shareWithText,
+    bool? directUrlEnabled,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -128,6 +135,7 @@ class AppSettings {
       searchLimit: searchLimit ?? this.searchLimit,
       recentHistoryLimit: recentHistoryLimit ?? this.recentHistoryLimit,
       shareWithText: shareWithText ?? this.shareWithText,
+      directUrlEnabled: directUrlEnabled ?? this.directUrlEnabled,
     );
   }
 }

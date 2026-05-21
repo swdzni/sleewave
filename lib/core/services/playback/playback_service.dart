@@ -59,6 +59,7 @@ class PlaybackService extends SafeChangeNotifier {
   PlaybackSnapshot _snapshot = const PlaybackSnapshot();
   BackendRepository? _lastBackend;
   int _recentHistoryLimit = AppConstants.defaultRecentHistoryLimit;
+  bool _directUrlEnabled = false;
   bool _handlingCompletion = false;
   Timer? _rewindTimer;
   Timer? _remoteControlsTimer;
@@ -78,9 +79,11 @@ class PlaybackService extends SafeChangeNotifier {
     List<Track>? queue,
     String? activePlaylistId,
     required int recentHistoryLimit,
+    required bool directUrlEnabled,
   }) async {
     _lastBackend = backend;
     _recentHistoryLimit = recentHistoryLimit;
+    _directUrlEnabled = directUrlEnabled;
     if (queue != null && queue.isNotEmpty) {
       final startIndex = queue.indexWhere((item) => item.id == track.id);
       _queue.setQueue(
@@ -381,6 +384,7 @@ class PlaybackService extends SafeChangeNotifier {
       return BackendStreamAudioSource(
         backend: backend,
         resultId: resultId,
+        directUrl: _directUrlEnabled,
         tag: mediaItem,
       );
     }

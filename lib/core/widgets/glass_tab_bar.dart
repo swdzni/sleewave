@@ -32,6 +32,7 @@ class GlassTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.themeTokens;
     return SafeArea(
       top: false,
       child: Padding(
@@ -42,7 +43,7 @@ class GlassTabBar extends StatelessWidget {
           12,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.floating),
+          borderRadius: BorderRadius.circular(tokens.floatingRadius),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
@@ -50,7 +51,7 @@ class GlassTabBar extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: context.palette.elevated.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(AppRadii.floating),
+                borderRadius: BorderRadius.circular(tokens.floatingRadius),
                 border: Border.all(color: context.palette.border),
               ),
               child: LayoutBuilder(
@@ -69,7 +70,7 @@ class GlassTabBar extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: context.palette.accentSoft,
                             borderRadius: BorderRadius.circular(
-                              AppRadii.control,
+                              tokens.controlRadius,
                             ),
                           ),
                         ),
@@ -111,12 +112,13 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.themeTokens;
     return Semantics(
       button: true,
       selected: active,
       label: item.semanticLabel,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.control),
+        borderRadius: BorderRadius.circular(tokens.controlRadius),
         onTap: () {
           HapticFeedback.selectionClick();
           onTap();

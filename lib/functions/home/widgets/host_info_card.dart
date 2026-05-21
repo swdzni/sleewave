@@ -12,6 +12,7 @@ class HostInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.themeTokens;
     final color = switch (status.kind) {
       ServerStatusKind.connected => context.palette.success,
       ServerStatusKind.problem => context.palette.danger,
@@ -21,12 +22,12 @@ class HostInfoCard extends StatelessWidget {
     };
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.row),
+      borderRadius: BorderRadius.circular(tokens.rowRadius),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: context.palette.surfaceMuted,
-          borderRadius: BorderRadius.circular(AppRadii.row),
+          borderRadius: BorderRadius.circular(tokens.rowRadius),
           border: Border.all(color: context.palette.border),
         ),
         child: Row(

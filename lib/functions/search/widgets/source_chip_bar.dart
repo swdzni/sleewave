@@ -32,10 +32,11 @@ class _SourceChipBarState extends State<SourceChipBar> {
       return const SizedBox.shrink();
     }
     final allSelected = widget.selectedSourceIds.isEmpty;
+    final tokens = context.themeTokens;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(AppRadii.row),
+        borderRadius: BorderRadius.circular(tokens.rowRadius),
         border: Border.all(color: context.palette.border),
       ),
       child: Padding(
@@ -44,7 +45,7 @@ class _SourceChipBarState extends State<SourceChipBar> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              borderRadius: BorderRadius.circular(AppRadii.row),
+              borderRadius: BorderRadius.circular(tokens.rowRadius),
               onTap: () {
                 HapticFeedback.selectionClick();
                 setState(() => _expanded = !_expanded);

@@ -13,7 +13,7 @@ void main() {
     String? toggled;
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.fromMode(SleewaveThemeMode.dark),
+        theme: AppTheme.fromMode(SleewaveThemeMode.caffeineDark),
         home: Scaffold(
           body: SourceChipBar(
             sources: [
