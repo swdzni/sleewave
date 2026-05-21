@@ -168,6 +168,17 @@ void main() {
     expect(sentOptions.queryParameters, {'direct_url': true});
   });
 
+  test('builds direct stream URI for platform playback', () {
+    final repository = BackendRepository(
+      ApiClient(baseUrl: 'http://example.test/api'),
+    );
+
+    expect(
+      repository.streamUri('stable-track', directUrl: true).toString(),
+      'http://example.test/api/stream/stable-track?direct_url=true',
+    );
+  });
+
   test('stream sends HTTP range header when requested', () async {
     late RequestOptions sentOptions;
     final repository = _repository((options) {
@@ -226,11 +237,47 @@ void main() {
       'direct_url': true,
     });
   });
+
+  test(
+    'direct download falls back to backend MP3 when redirect returns HLS',
+    () async {
+      final calls = <RequestOptions>[];
+      final repository = _repository(
+        (options) {
+          calls.add(options);
+          if (options.queryParameters['direct_url'] == true) {
+            return const [35, 69, 88, 84, 77, 51, 85, 10];
+          }
+          return const [1, 2, 3];
+        },
+        headersFor: (options) => Headers.fromMap({
+          'content-type': [
+            options.queryParameters['direct_url'] == true
+                ? 'application/vnd.apple.mpegurl'
+                : 'audio/mpeg',
+          ],
+        }),
+      );
+
+      final response = await repository.downloadTrack(
+        resultId: 'stable-track',
+        deviceId: 'device-one',
+        directUrl: true,
+      );
+
+      expect(response.bytes, const [1, 2, 3]);
+      expect(calls.map((options) => options.queryParameters), [
+        {'device_id': 'device-one', 'direct_url': true},
+        {'device_id': 'device-one'},
+      ]);
+    },
+  );
 }
 
 BackendRepository _repository(
   Object? Function(RequestOptions) fn, {
   Headers? headers,
+  Headers Function(RequestOptions)? headersFor,
 }) {
   final dio = Dio(BaseOptions(baseUrl: 'http://example.test'));
   dio.interceptors.add(
@@ -240,7 +287,7 @@ BackendRepository _repository(
           Response(
             requestOptions: options,
             data: fn(options),
-            headers: headers,
+            headers: headersFor?.call(options) ?? headers,
           ),
         );
       },

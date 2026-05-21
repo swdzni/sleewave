@@ -10,18 +10,38 @@ import '../../../core/utils/safe_change_notifier.dart';
 import '../models/home_state.dart';
 
 class HomeViewModel extends SafeChangeNotifier {
-  HomeViewModel(this._tracks, this._playlists, this._startup, this._theme);
+  HomeViewModel(this._tracks, this._playlists, this._startup, this._theme)
+    : _state = HomeState(status: _startup.status);
 
   final TrackRepository _tracks;
   final PlaylistRepository _playlists;
   final AppStartupController _startup;
   final ThemeController _theme;
-  HomeState _state = const HomeState();
+  HomeState _state;
   int _loadGeneration = 0;
+  Future<void>? _activeLoad;
 
   HomeState get state => _state;
 
   Future<void> load({bool refreshStatus = false}) async {
+    if (!refreshStatus) {
+      final activeLoad = _activeLoad;
+      if (activeLoad != null) {
+        return activeLoad;
+      }
+    }
+    final load = _load(refreshStatus: refreshStatus);
+    _activeLoad = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_activeLoad, load)) {
+        _activeLoad = null;
+      }
+    }
+  }
+
+  Future<void> _load({required bool refreshStatus}) async {
     final generation = ++_loadGeneration;
     _state = _state.copyWith(loading: true);
     notifyListeners();
@@ -125,7 +145,10 @@ final homeViewModelProvider = ChangeNotifierProvider.autoDispose<HomeViewModel>(
       previous,
       next,
     ) {
-      vm.load();
+      if (previous?.status != next.status ||
+          previous?.savedSongs != next.savedSongs) {
+        vm.load();
+      }
     });
     ref.listen<int>(libraryRevisionProvider, (previous, next) {
       vm.load();

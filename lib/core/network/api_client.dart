@@ -18,6 +18,24 @@ class ApiClient {
 
   Dio get dio => _dio;
 
+  Uri uri(String path, {Map<String, dynamic>? queryParameters}) {
+    final base = Uri.parse(_dio.options.baseUrl);
+    final relative = Uri.parse(path);
+    final combined = <String>[
+      ...base.pathSegments.where((segment) => segment.isNotEmpty),
+      ...relative.pathSegments,
+    ];
+    return base.replace(
+      pathSegments: combined,
+      queryParameters: {
+        ...relative.queryParameters,
+        if (queryParameters != null)
+          for (final entry in queryParameters.entries)
+            entry.key: '${entry.value}',
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> getJson(
     String path, {
     Map<String, dynamic>? queryParameters,

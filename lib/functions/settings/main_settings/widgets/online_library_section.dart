@@ -84,8 +84,7 @@ class OnlineLibrarySection extends StatelessWidget {
             SettingsRow(
               icon: Icons.link_rounded,
               title: 'Direct URLs',
-              subtitle:
-                  'Allow provider redirects for uncached streams and downloads.',
+              subtitle: 'Allow provider redirects for uncached playback.',
               trailing: Switch(
                 value: directUrlEnabled,
                 onChanged: onDirectUrlChanged,

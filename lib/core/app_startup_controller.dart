@@ -34,6 +34,7 @@ class AppStartupController extends SafeChangeNotifier {
   ServerStatus _status = const ServerStatus.unknown();
   List<SourceInfo> _sources = const [];
   List<Track> _savedSongs = const [];
+  Future<void>? _backendRefresh;
 
   bool get ready => _ready;
   ServerStatus get status => _status;
@@ -55,6 +56,22 @@ class AppStartupController extends SafeChangeNotifier {
   }
 
   Future<void> refreshBackend({bool keepConnectedStatus = false}) async {
+    final activeRefresh = _backendRefresh;
+    if (activeRefresh != null) {
+      return activeRefresh;
+    }
+    final refresh = _refreshBackend(keepConnectedStatus: keepConnectedStatus);
+    _backendRefresh = refresh;
+    try {
+      await refresh;
+    } finally {
+      if (identical(_backendRefresh, refresh)) {
+        _backendRefresh = null;
+      }
+    }
+  }
+
+  Future<void> _refreshBackend({required bool keepConnectedStatus}) async {
     final settings = theme.settings;
     final backend = backendForSettings(settings);
     if (backend == null) {

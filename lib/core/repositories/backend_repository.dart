@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../constants/api_paths.dart';
@@ -12,6 +14,13 @@ class BackendRepository {
 
   final ApiClient _apiClient;
   final SseClient _sseClient;
+
+  Uri streamUri(String resultId, {bool directUrl = false}) {
+    return _apiClient.uri(
+      ApiPaths.stream(resultId),
+      queryParameters: directUrl ? const {'direct_url': true} : null,
+    );
+  }
 
   Future<bool> checkHealth() async {
     final json = await _apiClient.getJson(ApiPaths.health);
@@ -90,19 +99,40 @@ class BackendRepository {
     bool directUrl = false,
     ProgressCallback? onProgress,
   }) async {
-    final response = await _apiClient.getBytes(
+    final response = await _downloadBytes(
+      resultId: resultId,
+      deviceId: deviceId,
+      directUrl: directUrl,
+      onProgress: onProgress,
+    );
+    final resolvedResponse = directUrl && _looksLikeHlsPlaylist(response)
+        ? await _downloadBytes(
+            resultId: resultId,
+            deviceId: deviceId,
+            onProgress: onProgress,
+          )
+        : response;
+    return DownloadResponse(
+      bytes: resolvedResponse.data ?? const [],
+      filename: _filenameFromHeader(
+        resolvedResponse.headers.value('content-disposition'),
+      ),
+    );
+  }
+
+  Future<Response<List<int>>> _downloadBytes({
+    required String resultId,
+    required String deviceId,
+    bool directUrl = false,
+    ProgressCallback? onProgress,
+  }) {
+    return _apiClient.getBytes(
       ApiPaths.download(resultId),
       queryParameters: {
         'device_id': deviceId,
         if (directUrl) 'direct_url': true,
       },
       onReceiveProgress: onProgress,
-    );
-    return DownloadResponse(
-      bytes: response.data ?? const [],
-      filename: _filenameFromHeader(
-        response.headers.value('content-disposition'),
-      ),
     );
   }
 
@@ -165,5 +195,23 @@ class BackendRepository {
     final inclusiveEnd = end == null ? null : end - 1;
     final safeEnd = inclusiveEnd == null ? '' : inclusiveEnd.clamp(0, 1 << 62);
     return 'bytes=$safeStart-$safeEnd';
+  }
+
+  bool _looksLikeHlsPlaylist(Response<List<int>> response) {
+    final contentType = response.headers.value('content-type')?.toLowerCase();
+    if (contentType != null &&
+        (contentType.contains('mpegurl') ||
+            contentType.contains('application/vnd.apple.mpegurl'))) {
+      return true;
+    }
+    if (response.realUri.path.toLowerCase().endsWith('.m3u8')) {
+      return true;
+    }
+    final bytes = response.data;
+    if (bytes == null || bytes.isEmpty) {
+      return false;
+    }
+    final prefix = utf8.decode(bytes.take(512).toList(), allowMalformed: true);
+    return prefix.trimLeft().startsWith('#EXTM3U');
   }
 }

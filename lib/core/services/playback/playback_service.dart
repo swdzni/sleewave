@@ -395,10 +395,16 @@ class PlaybackService extends SafeChangeNotifier {
     }
     final resultId = track.resultId;
     if (resultId != null && backend != null) {
+      if (_directUrlEnabled) {
+        return AudioSource.uri(
+          backend.streamUri(resultId, directUrl: true),
+          tag: mediaItem,
+        );
+      }
       return BackendStreamAudioSource(
         backend: backend,
         resultId: resultId,
-        directUrl: _directUrlEnabled,
+        directUrl: false,
         tag: mediaItem,
       );
     }

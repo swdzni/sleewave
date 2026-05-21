@@ -42,7 +42,6 @@ class TrackShareService {
       final response = await backend.downloadTrack(
         resultId: resultId,
         deviceId: settings.deviceId,
-        directUrl: settings.directUrlEnabled,
       );
       final filename = response.filename ?? _shareFilename(track);
       final file = await _storage.writeTempBytes(
