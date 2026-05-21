@@ -16,7 +16,7 @@ import 'backend_stream_audio_source.dart';
 import 'queue_service.dart';
 
 class PlaybackService extends SafeChangeNotifier {
-  PlaybackService(this._tracks, this._queue) {
+  PlaybackService(this._tracks, this._queue, {this.onTrackRecorded}) {
     if (Platform.isIOS) {
       _remoteControlsChannel.setMethodCallHandler(_handleRemoteCommand);
       _scheduleRemoteControlsRefresh();
@@ -54,6 +54,7 @@ class PlaybackService extends SafeChangeNotifier {
 
   final TrackRepository _tracks;
   final QueueService _queue;
+  final FutureOr<void> Function(Track track)? onTrackRecorded;
   final AudioPlayer _player = AudioPlayer();
   final List<StreamSubscription<Object?>> _subscriptions = [];
   PlaybackSnapshot _snapshot = const PlaybackSnapshot();
@@ -278,6 +279,7 @@ class PlaybackService extends SafeChangeNotifier {
       }
       await _tracks.recordPlayed(track);
       await _trimRecentlyPlayed();
+      await _notifyTrackRecorded(track);
     } on ApiException catch (error) {
       _setPlaybackError(track, error.message, generation: generation);
     } on PlayerInterruptedException {
@@ -358,6 +360,18 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> _trimRecentlyPlayed() {
     return _tracks.trimRecentlyPlayed(limit: _recentHistoryLimit);
+  }
+
+  Future<void> _notifyTrackRecorded(Track track) async {
+    final callback = onTrackRecorded;
+    if (callback == null) {
+      return;
+    }
+    try {
+      await callback(track);
+    } catch (_) {
+      // Recent playback should never interrupt an already-started track.
+    }
   }
 
   Duration _durationFor(Track? track) {

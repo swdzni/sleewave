@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/cover_art.dart';
 import '../../../core/widgets/track_badges.dart';
 import '../view_models/player_view_model.dart';
@@ -105,11 +106,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           flex: 5,
                           child: Center(
                             child: GestureDetector(
-                              onLongPress: () => showPlayerTrackActions(
-                                context: context,
-                                ref: ref,
-                                track: track,
-                              ),
+                              onLongPress: () {
+                                AppHaptics.medium();
+                                showPlayerTrackActions(
+                                  context: context,
+                                  ref: ref,
+                                  track: track,
+                                );
+                              },
                               child: Hero(
                                 tag: 'cover-${track.id}',
                                 child: CoverArt(

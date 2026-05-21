@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
 import '../theme/glow_theme.dart';
+import '../utils/app_haptics.dart';
 
 class GlowButton extends StatefulWidget {
   const GlowButton({
@@ -49,7 +49,7 @@ class _GlowButtonState extends State<GlowButton> {
       child: GestureDetector(
         onTapDown: enabled
             ? (_) {
-                HapticFeedback.selectionClick();
+                AppHaptics.light();
                 setState(() => _pressed = true);
               }
             : null,

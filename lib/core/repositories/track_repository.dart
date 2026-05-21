@@ -176,12 +176,8 @@ class TrackRepository {
 
   Future<void> recordPlayed(Track track) async {
     final now = DateTime.now();
+    await upsert(track.copyWith(lastPlayedAt: now, updatedAt: now));
     await _db.transaction(() async {
-      await (_db.update(
-        _db.tracks,
-      )..where((table) => table.id.equals(track.id))).write(
-        TracksCompanion(lastPlayedAt: Value(now), updatedAt: Value(now)),
-      );
       final existing = await (_db.select(
         _db.recentTracks,
       )..where((table) => table.trackId.equals(track.id))).getSingleOrNull();

@@ -32,15 +32,13 @@ class _AppearanceSettingsScreenState
         children: [
           SettingsPageHeader(
             title: 'Appearance',
-            subtitle: 'Pick a palette and motion behavior.',
+            subtitle: 'Choose how Sleewave looks.',
             onBack: () => context.pop(),
           ),
           const SizedBox(height: 28),
           AppearanceSection(
             themeMode: state.settings.themeMode,
-            glowMode: state.settings.glowMode,
             onThemeChanged: vm.setThemeMode,
-            onGlowChanged: vm.setGlowMode,
           ),
         ],
       ),

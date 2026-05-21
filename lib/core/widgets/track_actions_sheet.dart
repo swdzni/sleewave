@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/track.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'bottom_sheet_shell.dart';
 import 'cover_art.dart';
 import 'track_badges.dart';
@@ -213,7 +213,11 @@ class _ActionTile extends StatelessWidget {
       leading: Icon(icon, color: color),
       title: Text(label, style: TextStyle(color: color)),
       onTap: () {
-        HapticFeedback.selectionClick();
+        if (danger) {
+          AppHaptics.warning();
+        } else {
+          AppHaptics.light();
+        }
         Navigator.pop(context);
         onTap();
       },

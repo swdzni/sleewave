@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/models/source_info.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 
 class SourceChipBar extends StatefulWidget {
   const SourceChipBar({
@@ -47,7 +47,7 @@ class _SourceChipBarState extends State<SourceChipBar> {
             InkWell(
               borderRadius: BorderRadius.circular(tokens.rowRadius),
               onTap: () {
-                HapticFeedback.selectionClick();
+                AppHaptics.selection();
                 setState(() => _expanded = !_expanded);
               },
               child: Padding(
@@ -78,9 +78,9 @@ class _SourceChipBarState extends State<SourceChipBar> {
                     label: const Text('All'),
                     selected: allSelected,
                     onSelected: (_) {
-                      HapticFeedback.selectionClick();
-                      widget.onSelectAll();
+                      AppHaptics.light();
                       setState(() => _expanded = false);
+                      widget.onSelectAll();
                     },
                   ),
                   for (final source in widget.sources)
@@ -88,9 +88,9 @@ class _SourceChipBarState extends State<SourceChipBar> {
                       source: source,
                       selected: widget.selectedSourceIds.contains(source.id),
                       onToggle: (sourceId) {
-                        HapticFeedback.selectionClick();
-                        widget.onToggle(sourceId);
+                        AppHaptics.light();
                         setState(() => _expanded = false);
+                        widget.onToggle(sourceId);
                       },
                     ),
                 ],

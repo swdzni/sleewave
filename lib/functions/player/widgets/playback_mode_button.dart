@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/playback_models.dart';
-import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/glow_theme.dart';
 import '../../../core/widgets/glow_button.dart';
 import '../view_models/player_view_model.dart';
 
@@ -16,11 +14,7 @@ class PlaybackModeButton extends ConsumerWidget {
     final vm = ref.watch(playerViewModelProvider);
     final snapshot = vm.state.snapshot;
     final mode = snapshot.mode;
-    final playbackAccent = GlowTheme.playbackAccent(
-      mode: ref.watch(themeControllerProvider).settings.glowMode,
-      track: snapshot.currentTrack,
-      fallback: context.palette.accent,
-    );
+    final playbackAccent = context.palette.accent;
     final icon = switch (mode) {
       PlaybackMode.normal => Icons.arrow_right_alt_rounded,
       PlaybackMode.shuffle => Icons.shuffle_rounded,

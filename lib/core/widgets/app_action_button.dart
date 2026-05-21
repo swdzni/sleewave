@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 
 class AppActionButton extends StatelessWidget {
   const AppActionButton({
@@ -27,7 +27,11 @@ class AppActionButton extends StatelessWidget {
     final effectiveOnPressed = loading || onPressed == null
         ? null
         : () {
-            HapticFeedback.selectionClick();
+            if (danger) {
+              AppHaptics.warning();
+            } else {
+              AppHaptics.light();
+            }
             onPressed!();
           };
     final childIcon = AnimatedSwitcher(

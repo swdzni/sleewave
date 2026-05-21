@@ -32,7 +32,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           SettingsPageHeader(
             title: 'Settings',
-            subtitle: 'Tune the app, your device identity, and Online Library.',
+            subtitle: 'Theme, library, and device.',
             onBack: () {
               if (context.canPop()) {
                 context.pop();
@@ -56,11 +56,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           SettingsSection(
-            title: 'Connections',
+            title: 'Online Library',
             children: [
               SettingsRow(
                 icon: Icons.cloud_queue_rounded,
-                title: 'Online Library',
+                title: 'Connection',
                 subtitle: state.status.label,
                 trailing: _StatusDot(status: state.status),
                 onTap: () => context.push('/settings/online-library'),
@@ -79,14 +79,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           SettingsSection(
-            title: 'General',
-            subtitle: 'History and sharing preferences.',
+            title: 'Playback',
             children: [
               SettingsRow(
                 icon: Icons.tune_rounded,
-                title: 'General preferences',
+                title: 'History & sharing',
                 subtitle:
-                    '${state.settings.recentHistoryLimit} tracks · Share text ${state.settings.shareWithText ? 'on' : 'off'}',
+                    '${state.settings.recentHistoryLimit} recent tracks, share text ${state.settings.shareWithText ? 'on' : 'off'}',
                 onTap: () => context.push('/settings/other'),
               ),
             ],
@@ -140,30 +139,45 @@ class _ThemePreview extends StatelessWidget {
       palette.background,
       palette.surface,
       palette.accent,
-      palette.success,
-      palette.warning,
-      palette.danger,
+      palette.accentSoft,
     ];
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final color in colors)
-          Container(
-            width: 14,
-            height: 14,
-            margin: const EdgeInsets.only(left: 3),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(tokens.previewRadius / 2),
-              border: Border.all(color: context.palette.border),
+    return Container(
+      width: 78,
+      height: 30,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.background,
+        borderRadius: BorderRadius.circular(tokens.previewRadius),
+        border: Border.all(color: context.palette.border),
+      ),
+      child: Row(
+        children: [
+          for (final color in colors)
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(tokens.previewRadius / 2),
+                  border: Border.all(
+                    color:
+                        (color.computeLuminance() -
+                                    palette.background.computeLuminance())
+                                .abs() <
+                            0.08
+                        ? palette.strongBorder
+                        : palette.border,
+                  ),
+                ),
+              ),
             ),
+          Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 13,
+            color: context.palette.secondaryText,
           ),
-        Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 16,
-          color: context.palette.secondaryText,
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

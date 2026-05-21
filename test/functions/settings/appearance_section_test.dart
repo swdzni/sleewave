@@ -13,9 +13,7 @@ void main() {
           body: SingleChildScrollView(
             child: AppearanceSection(
               themeMode: SleewaveThemeMode.caffeineDark,
-              glowMode: GlowMode.static,
               onThemeChanged: (_) {},
-              onGlowChanged: (_) {},
             ),
           ),
         ),
@@ -23,7 +21,12 @@ void main() {
     );
 
     expect(find.text('Caffeine Dark'), findsOneWidget);
+    expect(find.text('Caffeine Light'), findsOneWidget);
+    expect(find.text('Mono Dark'), findsOneWidget);
     expect(find.text('Mono Light'), findsOneWidget);
+    expect(find.text('Dynamic'), findsNothing);
+    expect(find.byKey(const ValueKey('caffeine-theme-icon')), findsWidgets);
+    expect(find.byKey(const ValueKey('mono-theme-icon')), findsWidgets);
     expect(find.byWidgetPredicate(_isVisibleSwatch), findsAtLeastNWidgets(24));
   });
 }

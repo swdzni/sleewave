@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/utils/app_haptics.dart';
 
 class SettingsPageHeader extends StatelessWidget {
   const SettingsPageHeader({
@@ -23,22 +23,11 @@ class SettingsPageHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            if (onBack != null)
-              IconButton(
-                tooltip: 'Back',
-                onPressed: onBack,
-                icon: Icon(backIcon),
-              ),
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ),
-          ],
-        ),
+        if (onBack != null) ...[
+          IconButton(tooltip: 'Back', onPressed: onBack, icon: Icon(backIcon)),
+          const SizedBox(height: 8),
+        ],
+        Text(title, style: Theme.of(context).textTheme.headlineMedium),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
           Text(
@@ -114,7 +103,11 @@ class SettingsRow extends StatelessWidget {
       onTap: onTap == null
           ? null
           : () {
-              HapticFeedback.selectionClick();
+              if (danger) {
+                AppHaptics.warning();
+              } else {
+                AppHaptics.selection();
+              }
               onTap!();
             },
       borderRadius: BorderRadius.circular(tokens.rowRadius),

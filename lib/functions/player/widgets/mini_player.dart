@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/theme/glow_theme.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/cover_art.dart';
 import '../../../core/widgets/now_playing_bars.dart';
 import '../view_models/player_view_model.dart';
@@ -21,11 +19,7 @@ class MiniPlayer extends ConsumerWidget {
     final snapshot = vm.state.snapshot;
     final track = snapshot.currentTrack;
     final tokens = context.themeTokens;
-    final playbackAccent = GlowTheme.playbackAccent(
-      mode: ref.watch(themeControllerProvider).settings.glowMode,
-      track: track,
-      fallback: context.palette.accent,
-    );
+    final playbackAccent = context.palette.accent;
     if (track == null) {
       return const SizedBox.shrink();
     }
@@ -36,11 +30,11 @@ class MiniPlayer extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: GestureDetector(
           onTap: () {
-            HapticFeedback.selectionClick();
+            AppHaptics.selection();
             context.push('/player');
           },
           onLongPress: () {
-            HapticFeedback.mediumImpact();
+            AppHaptics.medium();
             showPlayerTrackActions(context: context, ref: ref, track: track);
           },
           onVerticalDragEnd: (details) {
@@ -109,7 +103,12 @@ class MiniPlayer extends ConsumerWidget {
                 const SizedBox(width: 6),
                 IconButton(
                   tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
-                  onPressed: snapshot.isBuffering ? null : vm.togglePlayPause,
+                  onPressed: snapshot.isBuffering
+                      ? null
+                      : () {
+                          AppHaptics.light();
+                          vm.togglePlayPause();
+                        },
                   icon: snapshot.isBuffering
                       ? const SizedBox.square(
                           dimension: 20,
@@ -123,7 +122,10 @@ class MiniPlayer extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Next',
-                  onPressed: vm.next,
+                  onPressed: () {
+                    AppHaptics.light();
+                    vm.next();
+                  },
                   icon: const Icon(Icons.skip_next_rounded),
                 ),
               ],

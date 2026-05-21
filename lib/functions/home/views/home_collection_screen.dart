@@ -7,6 +7,7 @@ import '../../../core/models/track.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/app_action_button.dart';
+import '../../../core/widgets/app_error_popup.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
@@ -92,33 +93,39 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                AppActionButton(
-                  onPressed:
-                      _loading ||
-                          !onlineAvailable ||
-                          _tracks.isEmpty ||
-                          _deletingAllFromServer ||
-                          _downloadingAllFromServer
-                      ? null
-                      : _confirmDeleteAllFromServer,
-                  icon: Icons.delete_sweep_rounded,
-                  label: 'Delete all from server',
-                  danger: true,
-                  loading: _deletingAllFromServer,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 144),
+                  child: AppActionButton(
+                    onPressed:
+                        _loading ||
+                            !onlineAvailable ||
+                            _tracks.isEmpty ||
+                            _deletingAllFromServer ||
+                            _downloadingAllFromServer
+                        ? null
+                        : _downloadAllFromServer,
+                    icon: Icons.download_rounded,
+                    label: 'Download all',
+                    filled: true,
+                    loading: _downloadingAllFromServer,
+                  ),
                 ),
-                AppActionButton(
-                  onPressed:
-                      _loading ||
-                          !onlineAvailable ||
-                          _tracks.isEmpty ||
-                          _deletingAllFromServer ||
-                          _downloadingAllFromServer
-                      ? null
-                      : _downloadAllFromServer,
-                  icon: Icons.download_rounded,
-                  label: 'Download all from server',
-                  filled: true,
-                  loading: _downloadingAllFromServer,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 134),
+                  child: AppActionButton(
+                    onPressed:
+                        _loading ||
+                            !onlineAvailable ||
+                            _tracks.isEmpty ||
+                            _deletingAllFromServer ||
+                            _downloadingAllFromServer
+                        ? null
+                        : _confirmDeleteAllFromServer,
+                    icon: Icons.delete_sweep_rounded,
+                    label: 'Clear server',
+                    danger: true,
+                    loading: _deletingAllFromServer,
+                  ),
                 ),
               ],
             ),
@@ -245,9 +252,9 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       notifyLibraryChangedFromWidget(ref);
     } on ApiException catch (error) {
       await _refreshServerIfTrackExpired(error);
-      _showMessage(error.message);
+      _showError('Download failed', error.message);
     } catch (_) {
-      _showMessage('Download failed. Try again.');
+      _showError('Download failed', 'Try again.');
     }
   }
 
@@ -286,9 +293,9 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       _showMessage(result.message);
     } on ApiException catch (error) {
       await _refreshServerIfTrackExpired(error);
-      _showMessage(error.message);
+      _showError('Server delete failed', error.message);
     } catch (_) {
-      _showMessage('Could not delete from server.');
+      _showError('Server delete failed', 'Could not delete from server.');
     }
   }
 
@@ -343,12 +350,12 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       if (mounted) {
         setState(() => _deletingAllFromServer = false);
       }
-      _showMessage(error.message);
+      _showError('Could not clear server', error.message);
     } catch (_) {
       if (mounted) {
         setState(() => _deletingAllFromServer = false);
       }
-      _showMessage('Could not delete server songs.');
+      _showError('Could not clear server', 'Could not delete server songs.');
     }
   }
 
@@ -405,7 +412,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       if (mounted) {
         setState(() => _downloadingAllFromServer = false);
       }
-      _showMessage('Could not download all server songs.');
+      _showError('Download failed', 'Could not download all server songs.');
     }
   }
 
@@ -460,9 +467,9 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
             backend: ref.read(backendRepositoryProvider),
           );
     } on ApiException catch (error) {
-      _showMessage(error.message);
+      _showError('Share failed', error.message);
     } catch (error) {
-      _showMessage(error.toString());
+      _showError('Share failed', error.toString());
     }
   }
 
@@ -502,5 +509,12 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showError(String title, String message) {
+    if (!mounted) {
+      return;
+    }
+    showAppErrorPopup(context: context, title: title, message: message);
   }
 }

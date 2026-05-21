@@ -119,6 +119,49 @@ void main() {
     expect((await tracks.byId(track.id))!.lastPlayedAt, isNull);
   });
 
+  test('records unpersisted tracks into recent history', () async {
+    final now = DateTime(2026);
+    final track = Track(
+      id: 'remote-played',
+      title: 'Remote Played',
+      artist: 'Remote Artist',
+      resultId: 'result-remote',
+      localOrigin: AppConstants.localOriginRemoteOnly,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await tracks.recordPlayed(track);
+
+    final recent = await tracks.recentTracks();
+    expect(recent.map((track) => track.id), ['remote-played']);
+    expect((await tracks.byId('remote-played'))!.lastPlayedAt, isNotNull);
+  });
+
+  test(
+    'replaying a track updates count without duplicate recent rows',
+    () async {
+      final now = DateTime(2026);
+      final track = Track(
+        id: 'played-again',
+        title: 'Played Again',
+        artist: 'Same Artist',
+        localOrigin: AppConstants.localOriginRemoteOnly,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await tracks.recordPlayed(track);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await tracks.recordPlayed(track);
+
+      final recentRows = await db.select(db.recentTracks).get();
+      expect(recentRows, hasLength(1));
+      expect(recentRows.single.playCount, 2);
+      expect((await tracks.byId(track.id))!.lastPlayedAt, isNotNull);
+    },
+  );
+
   test('trims recently played to the configured limit', () async {
     final now = DateTime(2026);
     final inserted = <Track>[];

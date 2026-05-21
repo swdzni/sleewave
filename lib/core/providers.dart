@@ -89,6 +89,7 @@ final playbackServiceProvider = ChangeNotifierProvider<PlaybackService>((ref) {
   return PlaybackService(
     ref.read(trackRepositoryProvider),
     ref.read(queueServiceProvider),
+    onTrackRecorded: (_) => notifyLibraryChanged(ref),
   );
 });
 
