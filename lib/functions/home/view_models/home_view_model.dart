@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/app_startup_controller.dart';
@@ -24,13 +26,14 @@ class HomeViewModel extends SafeChangeNotifier {
   HomeState get state => _state;
 
   Future<void> load({bool refreshStatus = false}) async {
-    if (!refreshStatus) {
-      final activeLoad = _activeLoad;
-      if (activeLoad != null) {
-        return activeLoad;
-      }
+    if (refreshStatus) {
+      unawaited(_startup.refreshBackend(keepConnectedStatus: true));
     }
-    final load = _load(refreshStatus: refreshStatus);
+    final activeLoad = _activeLoad;
+    if (activeLoad != null) {
+      return activeLoad;
+    }
+    final load = _load();
     _activeLoad = load;
     try {
       await load;
@@ -41,13 +44,10 @@ class HomeViewModel extends SafeChangeNotifier {
     }
   }
 
-  Future<void> _load({required bool refreshStatus}) async {
+  Future<void> _load() async {
     final generation = ++_loadGeneration;
     _state = _state.copyWith(loading: true);
     notifyListeners();
-    if (refreshStatus) {
-      await _startup.refreshBackend(keepConnectedStatus: true);
-    }
     final playlists = await _playlists.allPlaylists();
     final recent = await _tracks.recentTracks(
       limit: _theme.settings.recentHistoryLimit,
@@ -70,8 +70,8 @@ class HomeViewModel extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refreshBackend() async {
-    await _startup.refreshBackend();
+  Future<void> refreshBackend({bool force = true}) async {
+    await _startup.refreshBackend(force: force);
     await load();
   }
 

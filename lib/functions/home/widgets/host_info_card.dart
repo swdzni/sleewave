@@ -5,10 +5,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 class HostInfoCard extends StatelessWidget {
-  const HostInfoCard({super.key, required this.status, required this.onTap});
+  const HostInfoCard({
+    super.key,
+    required this.status,
+    required this.onTap,
+    this.onRetry,
+  });
 
   final ServerStatus status;
   final VoidCallback onTap;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +26,7 @@ class HostInfoCard extends StatelessWidget {
       ServerStatusKind.unknown ||
       ServerStatusKind.checking => context.palette.warning,
     };
+    final retry = onRetry;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(tokens.rowRadius),
@@ -53,7 +60,15 @@ class HostInfoCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded),
+            if (status.kind == ServerStatusKind.problem && retry != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Retry Online Library',
+                onPressed: retry,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ] else
+              const Icon(Icons.chevron_right_rounded),
           ],
         ),
       ),

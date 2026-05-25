@@ -12,7 +12,8 @@ import '../../../../core/utils/safe_change_notifier.dart';
 import '../models/settings_state.dart';
 
 typedef BackendRepositoryFactory = BackendRepository Function(String baseUrl);
-typedef StartupRefresh = Future<void> Function({bool keepConnectedStatus});
+typedef StartupRefresh =
+    Future<void> Function({bool keepConnectedStatus, bool force});
 
 class SettingsViewModel extends SafeChangeNotifier {
   SettingsViewModel(
@@ -26,9 +27,11 @@ class SettingsViewModel extends SafeChangeNotifier {
            ((baseUrl) => BackendRepository(ApiClient(baseUrl: baseUrl))),
        _refreshBackend =
            refreshBackend ??
-           (({bool keepConnectedStatus = false}) => _startup.refreshBackend(
-             keepConnectedStatus: keepConnectedStatus,
-           )),
+           (({bool keepConnectedStatus = false, bool force = false}) =>
+               _startup.refreshBackend(
+                 keepConnectedStatus: keepConnectedStatus,
+                 force: force,
+               )),
        _ref = ref;
 
   final ThemeController _theme;
@@ -102,7 +105,7 @@ class SettingsViewModel extends SafeChangeNotifier {
         message: 'Saved',
       );
       notifyListeners();
-      await _refreshBackend(keepConnectedStatus: true);
+      await _refreshBackend(keepConnectedStatus: true, force: true);
       _state = _state.copyWith(
         status:
             _startup.status.isConnected ||

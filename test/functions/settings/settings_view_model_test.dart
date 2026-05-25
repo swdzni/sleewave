@@ -43,6 +43,7 @@ void main() {
   });
 
   test('successful save stores the Online Library URL', () async {
+    var refreshForced = false;
     final vm = SettingsViewModel(
       theme,
       startup,
@@ -56,7 +57,10 @@ void main() {
           supportsDownload: true,
         ),
       ]),
-      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {
+            refreshForced = force;
+          },
     );
 
     await vm.saveUrl(' http://127.0.0.1:8000/ ');
@@ -65,6 +69,7 @@ void main() {
     expect(saved.backendBaseUrl, 'http://127.0.0.1:8000');
     expect(saved.selectedSourceIds, isEmpty);
     expect(vm.state.status.isConnected, isTrue);
+    expect(refreshForced, isTrue);
   });
 
   test('failed save leaves the stored Online Library URL unchanged', () async {
@@ -76,7 +81,8 @@ void main() {
       startup,
       backendFactory: (_) =>
           _FakeBackendRepository(const [], error: StateError('No connection')),
-      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
     );
 
     await vm.saveUrl('http://new.test');
@@ -90,7 +96,8 @@ void main() {
     final vm = SettingsViewModel(
       theme,
       startup,
-      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
     );
 
     await vm.setRecentHistoryLimit(35);
@@ -104,7 +111,8 @@ void main() {
     final vm = SettingsViewModel(
       theme,
       startup,
-      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
     );
 
     await vm.setShareWithText(true);
@@ -118,7 +126,8 @@ void main() {
     final vm = SettingsViewModel(
       theme,
       startup,
-      refreshBackend: ({bool keepConnectedStatus = false}) async {},
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
     );
 
     await vm.setDirectUrlEnabled(true);
