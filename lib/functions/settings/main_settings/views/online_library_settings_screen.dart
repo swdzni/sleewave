@@ -48,8 +48,6 @@ class _OnlineLibrarySettingsScreenState
         children: [
           SettingsPageHeader(
             title: 'Online Library',
-            subtitle:
-                'Connect your own server for remote search and downloads.',
             onBack: () => context.pop(),
           ),
           const SizedBox(height: 28),
@@ -80,8 +78,7 @@ class _OnlineLibrarySettingsScreenState
             onClearSongs: () async {
               final clear = await _confirm(
                 title: 'Clear all server songs?',
-                message:
-                    'This clears cached songs, the server track catalog, and device-library records.',
+                message: 'This clears cached songs and server records.',
                 action: 'Clear all',
               );
               if (clear) {

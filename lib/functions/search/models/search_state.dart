@@ -11,6 +11,9 @@ class SearchState {
     this.streamedResults = const [],
     this.warnings = const [],
     this.isSearching = false,
+    this.isLoadingMore = false,
+    this.hasMore = false,
+    this.nextOffset = 0,
     this.error,
     this.status = const ServerStatus.unknown(),
   });
@@ -22,6 +25,9 @@ class SearchState {
   final List<Track> streamedResults;
   final List<String> warnings;
   final bool isSearching;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final int nextOffset;
   final String? error;
   final ServerStatus status;
 
@@ -50,6 +56,9 @@ class SearchState {
     List<Track>? streamedResults,
     List<String>? warnings,
     bool? isSearching,
+    bool? isLoadingMore,
+    bool? hasMore,
+    int? nextOffset,
     Object? error = _sentinel,
     ServerStatus? status,
   }) {
@@ -61,6 +70,9 @@ class SearchState {
       streamedResults: streamedResults ?? this.streamedResults,
       warnings: warnings ?? this.warnings,
       isSearching: isSearching ?? this.isSearching,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      nextOffset: nextOffset ?? this.nextOffset,
       error: error == _sentinel ? this.error : error as String?,
       status: status ?? this.status,
     );

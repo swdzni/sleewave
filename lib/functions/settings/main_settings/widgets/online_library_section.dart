@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/config/app_config.dart';
 import '../../../../core/models/server_status.dart';
 import '../../../../core/models/source_info.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -48,7 +47,6 @@ class OnlineLibrarySection extends StatelessWidget {
       children: [
         SettingsSection(
           title: 'Connection',
-          subtitle: 'Sleewave works offline. Online Library is optional.',
           children: [
             SettingsRow(
               icon: Icons.circle,
@@ -75,7 +73,6 @@ class OnlineLibrarySection extends StatelessWidget {
               SettingsRow(
                 icon: Icons.warning_amber_rounded,
                 title: 'HTTPS recommended',
-                subtitle: 'Use HTTPS for remote servers when possible.',
                 trailing: Icon(
                   Icons.lock_open_rounded,
                   color: context.palette.warning,
@@ -84,7 +81,6 @@ class OnlineLibrarySection extends StatelessWidget {
             SettingsRow(
               icon: Icons.link_rounded,
               title: 'Direct URLs',
-              subtitle: 'Allow provider redirects for uncached playback.',
               trailing: Switch(
                 value: directUrlEnabled,
                 onChanged: onDirectUrlChanged,
@@ -94,12 +90,10 @@ class OnlineLibrarySection extends StatelessWidget {
         ),
         SettingsSection(
           title: 'Setup',
-          subtitle: 'Prepare a server, run the backend, then paste the link.',
           children: [
             SettingsRow(
               icon: Icons.open_in_new_rounded,
               title: 'Open setup guide',
-              subtitle: AppConfig.backendSetupRepoUrl,
               onTap: onOpenGuide,
               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
             ),
@@ -127,14 +121,12 @@ class OnlineLibrarySection extends StatelessWidget {
         if (status.isConnected)
           SettingsSection(
             title: 'Server cleanup',
-            subtitle: 'Destructive actions for server-side cached content.',
             children: [
               SettingsRow(
                 icon: clearingCache
                     ? Icons.hourglass_top_rounded
                     : Icons.cleaning_services_rounded,
                 title: 'Clear cache',
-                subtitle: 'Remove cached audio files from the server.',
                 onTap: clearingCache ? null : onClearCache,
               ),
               SettingsRow(
@@ -142,7 +134,6 @@ class OnlineLibrarySection extends StatelessWidget {
                     ? Icons.hourglass_top_rounded
                     : Icons.delete_sweep_rounded,
                 title: 'Clear all songs',
-                subtitle: 'Clear server catalog and device-library records.',
                 onTap: clearingSongs ? null : onClearSongs,
                 danger: true,
               ),
@@ -151,7 +142,6 @@ class OnlineLibrarySection extends StatelessWidget {
         if (sources.isNotEmpty)
           SettingsSection(
             title: 'Sources',
-            subtitle: 'Available search providers reported by your server.',
             children: [
               for (final source in sources)
                 SettingsRow(

@@ -11,11 +11,43 @@ import '../view_models/search_view_model.dart';
 import '../widgets/search_result_list.dart';
 import '../widgets/source_chip_bar.dart';
 
-class SearchScreen extends ConsumerWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends ConsumerState<SearchScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_loadMoreNearBottom);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_loadMoreNearBottom)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _loadMoreNearBottom() {
+    if (!_scrollController.hasClients ||
+        _scrollController.position.extentAfter > 520) {
+      return;
+    }
+    final vm = ref.read(searchViewModelProvider);
+    if (vm.state.hasMore && !vm.state.isLoadingMore) {
+      vm.loadMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final vm = ref.watch(searchViewModelProvider);
     final state = vm.state;
     final currentTrackId = ref
@@ -30,74 +62,98 @@ class SearchScreen extends ConsumerWidget {
     final downloadProgress = ref.watch(downloadServiceProvider).progress;
     return AppScaffold(
       safeBottom: false,
-      child: ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.only(bottom: 220),
-        children: [
-          Text('Search', style: Theme.of(context).textTheme.headlineLarge),
-          const SizedBox(height: 14),
-          AppSearchField(
-            placeholder: 'Search for artists, tracks...',
-            onChanged: vm.setQuery,
-            onSubmitted: (_) => vm.searchNow(force: true),
-          ),
-          const SizedBox(height: 12),
-          SourceChipBar(
-            sources: state.availableSources,
-            selectedSourceIds: state.selectedSourceIds,
-            onToggle: vm.toggleSource,
-            onSelectAll: vm.selectAllSources,
-          ),
-          if (state.isSearching)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: LinearProgressIndicator(),
+      child: Listener(
+        onPointerMove: (event) {
+          if (event.delta.dy > 0 &&
+              _scrollController.hasClients &&
+              _scrollController.position.pixels <= 0) {
+            FocusScope.of(context).unfocus();
+          }
+        },
+        child: ListView(
+          controller: _scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.only(bottom: 220),
+          children: [
+            Text('Search', style: Theme.of(context).textTheme.headlineLarge),
+            const SizedBox(height: 14),
+            AppSearchField(
+              placeholder: 'Search for artists, tracks...',
+              onChanged: vm.setQuery,
+              onSubmitted: (_) => vm.searchNow(force: true),
             ),
-          for (final warning in state.warnings)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: AppAlert(
-                title: 'Source warning',
-                message: warning,
-                variant: AppAlertVariant.warning,
+            const SizedBox(height: 12),
+            SourceChipBar(
+              sources: state.availableSources,
+              selectedSourceIds: state.selectedSourceIds,
+              onToggle: vm.toggleSource,
+              onSelectAll: vm.selectAllSources,
+            ),
+            if (state.isSearching)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: LinearProgressIndicator(),
               ),
-            ),
-          if (state.error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              child: AppAlert(
-                title: 'Search failed',
-                message: state.error!,
-                variant: AppAlertVariant.danger,
-                actionLabel: 'Try again',
-                onAction: () => vm.searchNow(force: true),
+            for (final warning in state.warnings)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: AppAlert(
+                  title: 'Source warning',
+                  message: warning,
+                  variant: AppAlertVariant.warning,
+                ),
               ),
-            ),
-          if (state.query.trim().isEmpty)
-            EmptyState(
-              title: state.hasBackend
-                  ? 'Search your Online Library sources.'
-                  : 'Search your offline Library.',
-              icon: Icons.search_rounded,
-            )
-          else if (state.allResults.isEmpty && !state.isSearching)
-            const EmptyState(title: 'No tracks found.')
-          else
-            SearchResultList(
-              localMatches: state.localMatches,
-              streamedResults: state.streamedResults,
-              onPlay: vm.playTrack,
-              onLike: vm.toggleLike,
-              onDownload: vm.downloadTrack,
-              onShare: vm.shareTrack,
-              onDelete: vm.deleteTrack,
-              onDeleteFromServer: vm.deleteFromServer,
-              currentTrackId: currentTrackId,
-              sourceNames: sourceNames,
-              downloadProgress: downloadProgress,
-              onlineAvailable: state.hasBackend,
-            ),
-        ],
+            if (state.error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: AppAlert(
+                  title: 'Search failed',
+                  message: state.error!,
+                  variant: AppAlertVariant.danger,
+                  actionLabel: 'Try again',
+                  onAction: () => vm.searchNow(force: true),
+                ),
+              ),
+            if (state.query.trim().isEmpty)
+              EmptyState(
+                title: state.hasBackend
+                    ? 'Search your Online Library sources.'
+                    : 'Search your offline Library.',
+                icon: Icons.search_rounded,
+              )
+            else if (state.allResults.isEmpty && !state.isSearching)
+              const EmptyState(title: 'No tracks found.')
+            else ...[
+              SearchResultList(
+                localMatches: state.localMatches,
+                streamedResults: state.streamedResults,
+                onPlay: vm.playTrack,
+                onLike: vm.toggleLike,
+                onDownload: vm.downloadTrack,
+                onShare: vm.shareTrack,
+                onDelete: vm.deleteTrack,
+                onDeleteFromServer: vm.deleteFromServer,
+                currentTrackId: currentTrackId,
+                sourceNames: sourceNames,
+                downloadProgress: downloadProgress,
+                onlineAvailable: state.hasBackend,
+              ),
+              if (state.isLoadingMore)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (state.hasMore)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: TextButton(
+                    onPressed: vm.loadMore,
+                    child: const Text('More results'),
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }

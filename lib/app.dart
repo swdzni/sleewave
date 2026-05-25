@@ -28,7 +28,7 @@ class _SleewaveAppState extends ConsumerState<SleewaveApp> {
     final startup = ref.watch(appStartupControllerProvider);
     final router = ref.watch(appRouterProvider);
 
-    if (!startup.ready && !theme.loaded) {
+    if (!startup.ready || !theme.loaded) {
       return MaterialApp(
         title: AppConstants.appName,
         theme: AppTheme.fromMode(theme.settings.themeMode),

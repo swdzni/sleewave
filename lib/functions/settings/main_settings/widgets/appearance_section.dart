@@ -21,7 +21,6 @@ class AppearanceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsSection(
       title: 'Themes',
-      subtitle: 'Four complete looks for color, type, shape, and controls.',
       children: [
         for (final option in _ThemeOption.options)
           Padding(

@@ -1,6 +1,7 @@
 // ignore_for_file: experimental_member_use
 
 import 'package:just_audio/just_audio.dart';
+import 'package:dio/dio.dart';
 
 import '../../repositories/backend_repository.dart';
 
@@ -24,10 +25,14 @@ class BackendStreamAudioSource extends StreamAudioSource {
       end: end,
       directUrl: directUrl,
     );
-    final headers = response.headers;
+    final resolvedResponse = directUrl && _looksLikeHlsResponse(response)
+        ? await backend.openStream(resultId, start: start, end: end)
+        : response;
+    final headers = resolvedResponse.headers;
     final contentLength = int.tryParse(headers.value('content-length') ?? '');
     final contentRange = _parseContentRange(headers.value('content-range'));
-    final rangeSupported = response.statusCode == 206 && contentRange != null;
+    final rangeSupported =
+        resolvedResponse.statusCode == 206 && contentRange != null;
     final offset = rangeSupported ? contentRange.start : 0;
     final sourceLength = contentRange?.sourceLength ?? contentLength;
     return StreamAudioResponse(
@@ -35,9 +40,19 @@ class BackendStreamAudioSource extends StreamAudioSource {
       sourceLength: sourceLength,
       contentLength: contentRange?.contentLength ?? contentLength,
       offset: offset,
-      stream: response.data?.stream ?? const Stream.empty(),
+      stream: resolvedResponse.data?.stream ?? const Stream.empty(),
       contentType: headers.value('content-type') ?? 'audio/mpeg',
     );
+  }
+
+  bool _looksLikeHlsResponse(Response<ResponseBody> response) {
+    final contentType = response.headers.value('content-type')?.toLowerCase();
+    if (contentType != null &&
+        (contentType.contains('mpegurl') ||
+            contentType.contains('application/vnd.apple.mpegurl'))) {
+      return true;
+    }
+    return response.realUri.path.toLowerCase().endsWith('.m3u8');
   }
 
   _ContentRange? _parseContentRange(String? value) {

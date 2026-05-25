@@ -11,7 +11,6 @@ class DeviceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsSection(
       title: 'Device identity',
-      subtitle: 'Used to distinguish this device when syncing with a server.',
       children: [
         TextField(
           controller: deviceController,

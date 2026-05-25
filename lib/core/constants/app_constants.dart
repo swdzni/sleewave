@@ -5,7 +5,9 @@ class AppConstants {
   static const favoritePlaylistId = 'favorites';
   static const favoritePlaylistName = 'Favorite';
   static const unknownArtist = 'Unknown Artist';
-  static const defaultSearchLimit = 25;
+  static const defaultSearchLimit = 10;
+  static const homeServerPreviewLimit = 3;
+  static const serverSongsPageSize = 10;
   static const defaultRecentHistoryLimit = 100;
   static const minRecentHistoryLimit = 5;
   static const maxRecentHistoryLimit = 200;

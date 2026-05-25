@@ -48,154 +48,201 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .isConnected;
     final downloadProgress = ref.watch(downloadServiceProvider).progress;
     final tokens = context.themeTokens;
+    final hasContent =
+        state.playlists.isNotEmpty ||
+        state.recentTracks.isNotEmpty ||
+        state.savedSongs.isNotEmpty ||
+        state.localPreview.isNotEmpty;
     return AppScaffold(
       safeBottom: false,
       child: RefreshIndicator(
         onRefresh: vm.refreshBackend,
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 220),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Sleewave',
-                    style: Theme.of(context).textTheme.headlineLarge,
+            if (state.loading && !hasContent)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 120),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Sleewave',
+                      style: Theme.of(context).textTheme.headlineLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Settings',
+                    onPressed: () => context.push('/settings'),
+                    icon: const Icon(Icons.settings_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (ref.watch(themeControllerProvider).settings.backendBaseUrl !=
+                  null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: HostInfoCard(
+                    status: state.status,
+                    onTap: () => context.push('/settings'),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Settings',
-                  onPressed: () => context.push('/settings'),
-                  icon: const Icon(Icons.settings_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (ref.watch(themeControllerProvider).settings.backendBaseUrl !=
-                null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: HostInfoCard(
-                  status: state.status,
-                  onTap: () => context.push('/settings'),
-                ),
-              ),
-            if (state.playlists.isNotEmpty)
-              HomeSection(
-                title: 'Playlists',
-                trailing: TextButton(
-                  onPressed: () => context.go('/playlists'),
-                  child: const Text('More'),
-                ),
-                child: SizedBox(
-                  height: 102,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemBuilder: (context, index) {
-                      final playlist = state.playlists.take(4).toList()[index];
-                      final active =
-                          playbackSnapshot.activePlaylistId == playlist.id;
-                      return InkWell(
-                        onTap: () => context.push('/playlists/${playlist.id}'),
-                        borderRadius: BorderRadius.circular(tokens.rowRadius),
-                        child: Container(
-                          width: 160,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: active
-                                ? context.palette.accentSoft
-                                : context.palette.surface,
-                            borderRadius: BorderRadius.circular(
-                              tokens.rowRadius,
-                            ),
-                            border: Border.all(
+              if (state.playlists.isNotEmpty)
+                HomeSection(
+                  title: 'Playlists',
+                  trailing: TextButton(
+                    onPressed: () => context.go('/playlists'),
+                    child: const Text('More'),
+                  ),
+                  child: SizedBox(
+                    height: 102,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemBuilder: (context, index) {
+                        final playlist = state.playlists
+                            .take(4)
+                            .toList()[index];
+                        final active =
+                            playbackSnapshot.activePlaylistId == playlist.id;
+                        return InkWell(
+                          onTap: () =>
+                              context.push('/playlists/${playlist.id}'),
+                          borderRadius: BorderRadius.circular(tokens.rowRadius),
+                          child: Container(
+                            width: 160,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
                               color: active
-                                  ? context.palette.strongBorder
-                                  : context.palette.border,
+                                  ? context.palette.accentSoft
+                                  : context.palette.surface,
+                              borderRadius: BorderRadius.circular(
+                                tokens.rowRadius,
+                              ),
+                              border: Border.all(
+                                color: active
+                                    ? context.palette.strongBorder
+                                    : context.palette.border,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                PlaylistCover(
+                                  size: 34,
+                                  colorHex: playlist.coverPath ?? playlist.id,
+                                  isFavorite: playlist.isFavorite,
+                                ),
+                                const Spacer(),
+                                Text(
+                                  playlist.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                Text(
+                                  active
+                                      ? 'Playing now'
+                                      : '${playlist.trackCount} tracks',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              PlaylistCover(
-                                size: 34,
-                                colorHex: playlist.coverPath ?? playlist.id,
-                                isFavorite: playlist.isFavorite,
-                              ),
-                              const Spacer(),
-                              Text(
-                                playlist.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                active
-                                    ? 'Playing now'
-                                    : '${playlist.trackCount} tracks',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 10),
-                    itemCount: state.playlists.take(4).length,
+                        );
+                      },
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 10),
+                      itemCount: state.playlists.take(4).length,
+                    ),
                   ),
                 ),
-              ),
-            if (state.recentTracks.isNotEmpty)
-              HomeSection(
-                title: 'Recently played',
-                trailing: TextButton(
-                  onPressed: () => context.push('/home/recent'),
-                  child: const Text('More'),
+              if (state.recentTracks.isNotEmpty)
+                HomeSection(
+                  title: 'Recently played',
+                  trailing: TextButton(
+                    onPressed: () => context.push('/home/recent'),
+                    child: const Text('More'),
+                  ),
+                  child: Column(
+                    children: [
+                      for (final track in state.recentTracks.take(3))
+                        SongCard(
+                          track: track,
+                          isPlaying: currentTrackId == track.id,
+                          onlineAvailable: onlineAvailable,
+                          onTap: () =>
+                              player.play(track, queue: state.recentTracks),
+                          onLongPress: () =>
+                              _showTrackActions(track, onlineAvailable),
+                          onLike: () => _toggleLike(track),
+                          onAddToPlaylist: () => _showAddToPlaylist(track),
+                          onDownload: onlineAvailable
+                              ? () => _downloadTrack(track)
+                              : null,
+                          onDelete: () => _deleteLocalState(track),
+                          downloadProgress: downloadProgress[track.id],
+                        ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    for (final track in state.recentTracks.take(3))
-                      SongCard(
-                        track: track,
-                        isPlaying: currentTrackId == track.id,
-                        onlineAvailable: onlineAvailable,
-                        onTap: () =>
-                            player.play(track, queue: state.recentTracks),
-                        onLongPress: () =>
-                            _showTrackActions(track, onlineAvailable),
-                        onLike: () => _toggleLike(track),
-                        onAddToPlaylist: () => _showAddToPlaylist(track),
-                        onDownload: onlineAvailable
-                            ? () => _downloadTrack(track)
-                            : null,
-                        onDelete: () => _deleteLocalState(track),
-                        downloadProgress: downloadProgress[track.id],
-                      ),
-                  ],
+              if (state.status.isConnected)
+                HomeSection(
+                  title: 'Saved on server',
+                  trailing: state.savedSongs.isEmpty
+                      ? null
+                      : TextButton(
+                          onPressed: () => context.push('/home/server'),
+                          child: const Text('More'),
+                        ),
+                  child: state.savedSongs.isEmpty
+                      ? const EmptyState(title: 'No server-cached tracks yet.')
+                      : Column(
+                          children: [
+                            for (final track in state.savedSongs.take(3))
+                              SongCard(
+                                track: track,
+                                isPlaying: currentTrackId == track.id,
+                                onlineAvailable: onlineAvailable,
+                                onTap: () =>
+                                    player.play(track, queue: state.savedSongs),
+                                onLongPress: () =>
+                                    _showTrackActions(track, onlineAvailable),
+                                onLike: () => _toggleLike(track),
+                                onAddToPlaylist: () =>
+                                    _showAddToPlaylist(track),
+                                onDownload: onlineAvailable
+                                    ? () => _downloadTrack(track)
+                                    : null,
+                                onDelete: () => _deleteLocalState(track),
+                                downloadProgress: downloadProgress[track.id],
+                              ),
+                          ],
+                        ),
                 ),
-              ),
-            if (state.status.isConnected)
               HomeSection(
-                title: 'Saved on server',
-                trailing: state.savedSongs.isEmpty
-                    ? null
-                    : TextButton(
-                        onPressed: () => context.push('/home/server'),
-                        child: const Text('More'),
-                      ),
-                child: state.savedSongs.isEmpty
-                    ? const EmptyState(title: 'No server-cached tracks yet.')
+                title: 'Offline library',
+                child: state.localPreview.isEmpty
+                    ? const EmptyState(
+                        title: 'No local tracks yet.',
+                        subtitle: 'Import audio files from Library.',
+                      )
                     : Column(
                         children: [
-                          for (final track in state.savedSongs.take(3))
+                          for (final track in state.localPreview)
                             SongCard(
                               track: track,
                               isPlaying: currentTrackId == track.id,
                               onlineAvailable: onlineAvailable,
                               onTap: () =>
-                                  player.play(track, queue: state.savedSongs),
+                                  player.play(track, queue: state.localPreview),
                               onLongPress: () =>
                                   _showTrackActions(track, onlineAvailable),
                               onLike: () => _toggleLike(track),
@@ -209,35 +256,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ],
                       ),
               ),
-            HomeSection(
-              title: 'Offline library',
-              child: state.localPreview.isEmpty
-                  ? const EmptyState(
-                      title: 'No local tracks yet.',
-                      subtitle: 'Import audio files from Library.',
-                    )
-                  : Column(
-                      children: [
-                        for (final track in state.localPreview)
-                          SongCard(
-                            track: track,
-                            isPlaying: currentTrackId == track.id,
-                            onlineAvailable: onlineAvailable,
-                            onTap: () =>
-                                player.play(track, queue: state.localPreview),
-                            onLongPress: () =>
-                                _showTrackActions(track, onlineAvailable),
-                            onLike: () => _toggleLike(track),
-                            onAddToPlaylist: () => _showAddToPlaylist(track),
-                            onDownload: onlineAvailable
-                                ? () => _downloadTrack(track)
-                                : null,
-                            onDelete: () => _deleteLocalState(track),
-                            downloadProgress: downloadProgress[track.id],
-                          ),
-                      ],
-                    ),
-            ),
+            ],
           ],
         ),
       ),

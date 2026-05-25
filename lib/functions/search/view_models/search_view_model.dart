@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/app_startup_controller.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/track.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/backend_models.dart';
 import '../../../core/providers.dart';
+import '../../../core/repositories/backend_repository.dart';
 import '../../../core/repositories/track_repository.dart';
 import '../../../core/services/downloads/download_service.dart';
 import '../../../core/services/search/search_service.dart';
@@ -43,6 +45,7 @@ class SearchViewModel extends SafeChangeNotifier {
   final Ref _ref;
   Timer? _debounce;
   CancelToken? _cancelToken;
+  CancelToken? _loadMoreCancelToken;
   _SearchKey? _lastExecutedSearch;
   bool _lastSearchMissedBackend = false;
   int? _ignoredLibraryRevision;
@@ -85,7 +88,14 @@ class SearchViewModel extends SafeChangeNotifier {
     if (query == _state.query) {
       return;
     }
-    _state = _state.copyWith(query: query, error: null);
+    _cancelToken?.cancel();
+    _loadMoreCancelToken?.cancel();
+    _state = _state.copyWith(
+      query: query,
+      isSearching: false,
+      isLoadingMore: false,
+      error: null,
+    );
     notifyListeners();
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 1500), () => searchNow());
@@ -130,6 +140,7 @@ class SearchViewModel extends SafeChangeNotifier {
   Future<void> searchNow({bool force = false}) async {
     _debounce?.cancel();
     _cancelToken?.cancel();
+    _loadMoreCancelToken?.cancel();
     final query = _state.query.trim();
     if (query.isEmpty) {
       _lastExecutedSearch = null;
@@ -137,6 +148,9 @@ class SearchViewModel extends SafeChangeNotifier {
         localMatches: const [],
         streamedResults: const [],
         isSearching: false,
+        isLoadingMore: false,
+        hasMore: false,
+        nextOffset: 0,
         error: null,
       );
       notifyListeners();
@@ -154,7 +168,10 @@ class SearchViewModel extends SafeChangeNotifier {
       localMatches: local,
       streamedResults: const [],
       warnings: const [],
+      isLoadingMore: false,
       error: null,
+      hasMore: false,
+      nextOffset: 0,
       status: _startup.status,
     );
     notifyListeners();
@@ -162,45 +179,33 @@ class SearchViewModel extends SafeChangeNotifier {
     final backend = _ref.read(backendRepositoryProvider);
     if (backend == null || !_startup.status.isConnected) {
       _lastSearchMissedBackend = true;
-      _state = _state.copyWith(isSearching: false, error: null);
+      _state = _state.copyWith(isSearching: false, hasMore: false, error: null);
       notifyListeners();
       return;
     }
     _lastSearchMissedBackend = false;
-    _cancelToken = CancelToken();
+    final cancelToken = CancelToken();
+    _cancelToken = cancelToken;
     _state = _state.copyWith(isSearching: true);
     notifyListeners();
     try {
-      _loadSavedSongsFirst(query);
-      await for (final event in backend.search(
+      final page = await _fetchOnlinePage(
+        backend: backend,
         query: query,
         sourceIds: searchKey.sourceIds,
-        limit: _theme.settings.searchLimit,
+        limit: AppConstants.defaultSearchLimit,
+        offset: 0,
         deviceId: _theme.settings.deviceId,
-        cancelToken: _cancelToken,
-      )) {
-        switch (event) {
-          case SearchStarted():
-            _state = _state.copyWith(isSearching: true);
-          case SearchTrackFound():
-            final saved = await _tracks.mergeRemoteTrack(event.track);
-            _state = _state.copyWith(
-              streamedResults: _searchService.mergeResults(
-                existing: _state.streamedResults,
-                incoming: saved,
-              ),
-            );
-          case SearchWarning():
-            _state = _state.copyWith(
-              warnings: [..._state.warnings, event.message],
-            );
-          case SearchDone():
-            _state = _state.copyWith(isSearching: false);
-        }
-        notifyListeners();
-      }
+        cancelToken: cancelToken,
+      );
+      _state = _state.copyWith(
+        isSearching: false,
+        hasMore: page.hasMore,
+        nextOffset: page.nextOffset,
+      );
+      notifyListeners();
     } catch (error) {
-      if (_cancelToken?.isCancelled == true) {
+      if (cancelToken.isCancelled) {
         return;
       }
       final message = error is ApiException
@@ -220,8 +225,64 @@ class SearchViewModel extends SafeChangeNotifier {
 
   void cancelSearch() {
     _cancelToken?.cancel();
-    _state = _state.copyWith(isSearching: false);
+    _loadMoreCancelToken?.cancel();
+    _state = _state.copyWith(isSearching: false, isLoadingMore: false);
     notifyListeners();
+  }
+
+  Future<void> loadMore() async {
+    if (_state.isSearching ||
+        _state.isLoadingMore ||
+        !_state.hasMore ||
+        _state.query.trim().isEmpty) {
+      return;
+    }
+    final backend = _ref.read(backendRepositoryProvider);
+    if (backend == null || !_startup.status.isConnected) {
+      _state = _state.copyWith(hasMore: false, isLoadingMore: false);
+      notifyListeners();
+      return;
+    }
+    final searchKey = _SearchKey(
+      _state.query.trim(),
+      _state.effectiveSourceIds(),
+    );
+    _loadMoreCancelToken?.cancel();
+    final cancelToken = CancelToken();
+    _loadMoreCancelToken = cancelToken;
+    _state = _state.copyWith(isLoadingMore: true, error: null);
+    notifyListeners();
+    try {
+      final page = await _fetchOnlinePage(
+        backend: backend,
+        query: searchKey.query,
+        sourceIds: searchKey.sourceIds,
+        limit: AppConstants.defaultSearchLimit,
+        offset: _state.nextOffset,
+        deviceId: _theme.settings.deviceId,
+        cancelToken: cancelToken,
+      );
+      _lastExecutedSearch = searchKey;
+      _state = _state.copyWith(
+        isLoadingMore: false,
+        hasMore: page.hasMore,
+        nextOffset: page.nextOffset,
+      );
+      notifyListeners();
+    } catch (error) {
+      if (cancelToken.isCancelled) {
+        return;
+      }
+      final message = error is ApiException
+          ? error.message
+          : 'Online Library search failed.';
+      _state = _state.copyWith(
+        isLoadingMore: false,
+        error: message,
+        hasMore: true,
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> playTrack(Track track) {
@@ -290,6 +351,55 @@ class SearchViewModel extends SafeChangeNotifier {
       return;
     }
     await _startup.refreshBackend(keepConnectedStatus: true);
+  }
+
+  Future<_SearchPage> _fetchOnlinePage({
+    required BackendRepository backend,
+    required String query,
+    required List<String> sourceIds,
+    required int limit,
+    required int offset,
+    required String deviceId,
+    required CancelToken? cancelToken,
+  }) async {
+    var emitted = 0;
+    var receivedTrack = false;
+    await for (final event in backend.search(
+      query: query,
+      sourceIds: sourceIds,
+      limit: limit,
+      offset: offset,
+      deviceId: deviceId,
+      cancelToken: cancelToken,
+    )) {
+      switch (event) {
+        case SearchStarted():
+          break;
+        case SearchTrackFound():
+          receivedTrack = true;
+          emitted = event.emitted;
+          final saved = await _tracks.mergeRemoteTrack(event.track);
+          _state = _state.copyWith(
+            streamedResults: _searchService.mergeResults(
+              existing: _state.streamedResults,
+              incoming: saved,
+            ),
+          );
+          notifyListeners();
+        case SearchWarning():
+          _state = _state.copyWith(
+            warnings: [..._state.warnings, event.message],
+          );
+          notifyListeners();
+        case SearchDone():
+          emitted = event.emitted;
+      }
+    }
+    final nextOffset = offset + emitted;
+    return _SearchPage(
+      nextOffset: nextOffset,
+      hasMore: receivedTrack && emitted >= limit,
+    );
   }
 
   Future<void> shareTrack(Track track) async {
@@ -376,27 +486,6 @@ class SearchViewModel extends SafeChangeNotifier {
     return false;
   }
 
-  void _loadSavedSongsFirst(String query) {
-    for (final song in _startup.savedSongs.where(
-      (track) => _matchesQuery(track, query),
-    )) {
-      _state = _state.copyWith(
-        streamedResults: _searchService.mergeResults(
-          existing: _state.streamedResults,
-          incoming: song,
-        ),
-      );
-      notifyListeners();
-    }
-  }
-
-  bool _matchesQuery(Track track, String query) {
-    final normalized = query.toLowerCase();
-    return track.title.toLowerCase().contains(normalized) ||
-        track.artist.toLowerCase().contains(normalized) ||
-        (track.album?.toLowerCase().contains(normalized) ?? false);
-  }
-
   List<Track> _replaceTrack(List<Track> tracks, Track updated) {
     return [
       for (final track in tracks) track.id == updated.id ? updated : track,
@@ -440,8 +529,16 @@ class SearchViewModel extends SafeChangeNotifier {
   void dispose() {
     _debounce?.cancel();
     _cancelToken?.cancel();
+    _loadMoreCancelToken?.cancel();
     super.dispose();
   }
+}
+
+class _SearchPage {
+  const _SearchPage({required this.nextOffset, required this.hasMore});
+
+  final int nextOffset;
+  final bool hasMore;
 }
 
 final searchViewModelProvider =

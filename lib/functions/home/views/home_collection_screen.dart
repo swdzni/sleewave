@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/app_startup_controller.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/models/track.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
@@ -36,15 +37,41 @@ class HomeCollectionScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
+  final _scrollController = ScrollController();
   List<Track> _tracks = const [];
   bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  int _nextOffset = 0;
+  int _loadGeneration = 0;
   bool _deletingAllFromServer = false;
   bool _downloadingAllFromServer = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadMoreNearBottom);
     Future.microtask(_load);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_loadMoreNearBottom)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _loadMoreNearBottom() {
+    if (widget.kind != HomeCollectionKind.server ||
+        !_scrollController.hasClients ||
+        _scrollController.position.extentAfter > 520 ||
+        _loading ||
+        _loadingMore ||
+        !_hasMore) {
+      return;
+    }
+    _loadMoreServerTracks();
   }
 
   @override
@@ -63,6 +90,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
     return AppScaffold(
       safeBottom: false,
       child: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.only(bottom: 220),
         children: [
           Row(
@@ -131,9 +159,14 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
             ),
             const SizedBox(height: 16),
           ],
-          if (_tracks.isEmpty && !_loading)
+          if (_tracks.isEmpty && _loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 36),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_tracks.isEmpty)
             EmptyState(title: 'No tracks yet.')
-          else
+          else ...[
             for (final track in _tracks)
               SongCard(
                 track: track,
@@ -151,42 +184,119 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
                 onDelete: () => _deleteLocalState(track),
                 downloadProgress: downloadProgress[track.id],
               ),
+            if (widget.kind == HomeCollectionKind.server && _loadingMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (widget.kind == HomeCollectionKind.server && _hasMore)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: TextButton(
+                  onPressed: _loadMoreServerTracks,
+                  child: const Text('More songs'),
+                ),
+              ),
+          ],
         ],
       ),
     );
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    final next = switch (widget.kind) {
-      HomeCollectionKind.recent =>
-        await ref
-            .read(trackRepositoryProvider)
-            .recentTracks(
-              limit: ref
-                  .read(themeControllerProvider)
-                  .settings
-                  .recentHistoryLimit,
-            ),
-      HomeCollectionKind.server => await _serverTracks(),
-    };
-    if (mounted) {
-      setState(() {
-        _tracks = next;
-        _loading = false;
-      });
+    final generation = ++_loadGeneration;
+    setState(() {
+      _loading = true;
+      _loadingMore = false;
+      _hasMore = false;
+      _nextOffset = 0;
+    });
+    try {
+      final next = switch (widget.kind) {
+        HomeCollectionKind.recent =>
+          await ref
+              .read(trackRepositoryProvider)
+              .recentTracks(
+                limit: ref
+                    .read(themeControllerProvider)
+                    .settings
+                    .recentHistoryLimit,
+              ),
+        HomeCollectionKind.server => await _serverTracks(offset: 0),
+      };
+      if (mounted && generation == _loadGeneration) {
+        setState(() {
+          _tracks = next;
+          _loading = false;
+        });
+      }
+    } catch (error) {
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loading = false);
+        _showError('Could not load songs', '$error');
+      }
     }
   }
 
-  Future<List<Track>> _serverTracks() async {
+  Future<List<Track>> _serverTracks({required int offset}) async {
     final startup = ref.read(appStartupControllerProvider);
-    await startup.refreshBackend(keepConnectedStatus: true);
+    if (offset == 0 && !startup.status.isConnected) {
+      await startup.refreshBackend(keepConnectedStatus: true);
+    }
+    final backend = ref.read(backendRepositoryProvider);
+    if (backend == null || !startup.status.isConnected) {
+      if (mounted) {
+        setState(() {
+          _hasMore = false;
+          _nextOffset = 0;
+        });
+      }
+      return const [];
+    }
+    final page = await backend.getSavedSongsPage(
+      limit: AppConstants.serverSongsPageSize,
+      offset: offset,
+    );
     final repository = ref.read(trackRepositoryProvider);
     final hydrated = <Track>[];
-    for (final track in startup.savedSongs) {
+    final seenIds = _tracks.map((track) => track.id).toSet();
+    for (final track in page.songs) {
+      if (offset > 0 && !seenIds.add(track.id)) {
+        continue;
+      }
       hydrated.add(await repository.byId(track.id) ?? track);
     }
+    if (mounted) {
+      setState(() {
+        _hasMore = page.hasMore;
+        _nextOffset =
+            offset + (page.count == 0 ? page.songs.length : page.count);
+      });
+    }
     return hydrated;
+  }
+
+  Future<void> _loadMoreServerTracks() async {
+    if (_loading || _loadingMore || !_hasMore) {
+      return;
+    }
+    final generation = _loadGeneration;
+    setState(() => _loadingMore = true);
+    try {
+      final next = await _serverTracks(offset: _nextOffset);
+      if (!mounted || generation != _loadGeneration) {
+        return;
+      }
+      setState(() {
+        _tracks = [..._tracks, ...next];
+        _loadingMore = false;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _loadingMore = false);
+        _showError('Could not load songs', '$error');
+      }
+    }
   }
 
   Future<void> _confirmClearRecentlyPlayed() async {

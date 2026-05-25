@@ -30,11 +30,7 @@ class _AppearanceSettingsScreenState
     return AppScaffold(
       child: ListView(
         children: [
-          SettingsPageHeader(
-            title: 'Appearance',
-            subtitle: 'Choose how Sleewave looks.',
-            onBack: () => context.pop(),
-          ),
+          SettingsPageHeader(title: 'Appearance', onBack: () => context.pop()),
           const SizedBox(height: 28),
           AppearanceSection(
             themeMode: state.settings.themeMode,

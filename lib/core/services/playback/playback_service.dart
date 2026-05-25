@@ -22,19 +22,7 @@ class PlaybackService extends SafeChangeNotifier {
       _scheduleRemoteControlsRefresh();
     }
     _subscriptions.add(
-      _player.playerStateStream.listen((state) {
-        _snapshot = _snapshot.copyWith(
-          isPlaying: state.playing,
-          isBuffering:
-              state.processingState == ProcessingState.buffering ||
-              state.processingState == ProcessingState.loading,
-        );
-        notifyListeners();
-        _scheduleRemoteControlsRefresh();
-        if (state.processingState == ProcessingState.completed) {
-          unawaited(_handleCompleted());
-        }
-      }),
+      _player.playerStateStream.listen(_handlePlayerStateChanged),
     );
     _subscriptions.add(
       _player.positionStream.listen((position) {
@@ -73,6 +61,20 @@ class PlaybackService extends SafeChangeNotifier {
   );
 
   PlaybackSnapshot get snapshot => _snapshot;
+
+  void _handlePlayerStateChanged(PlayerState state) {
+    _snapshot = _snapshot.copyWith(
+      isPlaying: state.playing,
+      isBuffering:
+          state.processingState == ProcessingState.buffering ||
+          state.processingState == ProcessingState.loading,
+    );
+    notifyListeners();
+    _scheduleRemoteControlsRefresh();
+    if (state.processingState == ProcessingState.completed) {
+      unawaited(_handleCompleted());
+    }
+  }
 
   Future<void> playTrack(
     Track track, {
@@ -227,6 +229,7 @@ class PlaybackService extends SafeChangeNotifier {
     Track track, {
     BackendRepository? backend,
     Object? activePlaylistId = _activePlaylistSentinel,
+    bool allowDirectUrl = true,
   }) async {
     final generation = ++_loadGeneration;
     _snapshot = _snapshot.copyWith(
@@ -254,7 +257,11 @@ class PlaybackService extends SafeChangeNotifier {
       if (_isStaleLoad(generation)) {
         return;
       }
-      final source = await _audioSourceFor(track, backend: backend);
+      final source = await _audioSourceFor(
+        track,
+        backend: backend,
+        allowDirectUrl: allowDirectUrl,
+      );
       if (_isStaleLoad(generation)) {
         return;
       }
@@ -291,6 +298,15 @@ class PlaybackService extends SafeChangeNotifier {
         );
       }
     } on PlayerException {
+      if (allowDirectUrl && _canFallbackFromDirectUrl(track, backend)) {
+        await _loadAndPlay(
+          track,
+          backend: backend,
+          activePlaylistId: activePlaylistId,
+          allowDirectUrl: false,
+        );
+        return;
+      }
       _setPlaybackError(
         track,
         'Could not start audio playback. Try again.',
@@ -325,6 +341,13 @@ class PlaybackService extends SafeChangeNotifier {
             notifyListeners();
           }
       }
+    } on PlayerException {
+      final track = _snapshot.currentTrack;
+      if (track != null) {
+        _setPlaybackError(track, 'Could not start next track.');
+      }
+    } on PlayerInterruptedException {
+      // A newer play/skip request took over.
     } finally {
       _handlingCompletion = false;
     }
@@ -385,6 +408,7 @@ class PlaybackService extends SafeChangeNotifier {
   Future<AudioSource?> _audioSourceFor(
     Track track, {
     required BackendRepository? backend,
+    required bool allowDirectUrl,
   }) async {
     final mediaItem = _mediaItem(track);
     final localPath = track.localPath;
@@ -395,20 +419,18 @@ class PlaybackService extends SafeChangeNotifier {
     }
     final resultId = track.resultId;
     if (resultId != null && backend != null) {
-      if (_directUrlEnabled) {
-        return AudioSource.uri(
-          backend.streamUri(resultId, directUrl: true),
-          tag: mediaItem,
-        );
-      }
       return BackendStreamAudioSource(
         backend: backend,
         resultId: resultId,
-        directUrl: false,
+        directUrl: _directUrlEnabled && allowDirectUrl,
         tag: mediaItem,
       );
     }
     return null;
+  }
+
+  bool _canFallbackFromDirectUrl(Track track, BackendRepository? backend) {
+    return _directUrlEnabled && backend != null && track.resultId != null;
   }
 
   Future<bool> isTrackPlayable(
@@ -418,6 +440,7 @@ class PlaybackService extends SafeChangeNotifier {
     final source = await _audioSourceFor(
       track,
       backend: backend ?? _lastBackend,
+      allowDirectUrl: true,
     );
     return source != null;
   }

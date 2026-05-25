@@ -79,7 +79,6 @@ class _SourceChipBarState extends State<SourceChipBar> {
                     selected: allSelected,
                     onSelected: (_) {
                       AppHaptics.light();
-                      setState(() => _expanded = false);
                       widget.onSelectAll();
                     },
                   ),
@@ -89,7 +88,6 @@ class _SourceChipBarState extends State<SourceChipBar> {
                       selected: widget.selectedSourceIds.contains(source.id),
                       onToggle: (sourceId) {
                         AppHaptics.light();
-                        setState(() => _expanded = false);
                         widget.onToggle(sourceId);
                       },
                     ),

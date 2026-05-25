@@ -32,7 +32,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           SettingsPageHeader(
             title: 'Settings',
-            subtitle: 'Theme, library, and device.',
             onBack: () {
               if (context.canPop()) {
                 context.pop();
@@ -85,7 +84,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.tune_rounded,
                 title: 'History & sharing',
                 subtitle:
-                    '${state.settings.recentHistoryLimit} recent tracks, share text ${state.settings.shareWithText ? 'on' : 'off'}',
+                    '${state.settings.recentHistoryLimit} recent, sharing ${state.settings.shareWithText ? 'on' : 'off'}',
                 onTap: () => context.push('/settings/other'),
               ),
             ],

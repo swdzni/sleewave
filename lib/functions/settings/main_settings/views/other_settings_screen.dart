@@ -30,15 +30,10 @@ class _OtherSettingsScreenState extends ConsumerState<OtherSettingsScreen> {
     return AppScaffold(
       child: ListView(
         children: [
-          SettingsPageHeader(
-            title: 'General',
-            subtitle: 'History and sharing behavior.',
-            onBack: () => context.pop(),
-          ),
+          SettingsPageHeader(title: 'General', onBack: () => context.pop()),
           const SizedBox(height: 28),
           SettingsSection(
             title: 'Playback history',
-            subtitle: 'Control how many recently played tracks are kept.',
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -72,18 +67,16 @@ class _OtherSettingsScreenState extends ConsumerState<OtherSettingsScreen> {
               SettingsRow(
                 icon: Icons.history_rounded,
                 title: 'Recently played limit',
-                subtitle: 'Keep up to $limit tracks in play history.',
+                subtitle: '$limit tracks',
               ),
             ],
           ),
           SettingsSection(
             title: 'Sharing',
-            subtitle: 'Choose whether shared tracks include app attribution.',
             children: [
               SettingsRow(
                 icon: Icons.ios_share_rounded,
                 title: 'Share with text',
-                subtitle: 'Add "Sent from Sleewave player" to shares.',
                 trailing: Switch(
                   value: state.settings.shareWithText,
                   onChanged: vm.setShareWithText,

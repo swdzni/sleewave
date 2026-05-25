@@ -43,11 +43,7 @@ class _DeviceSettingsScreenState extends ConsumerState<DeviceSettingsScreen> {
     return AppScaffold(
       child: ListView(
         children: [
-          SettingsPageHeader(
-            title: 'Device',
-            subtitle: 'Name this install for library and server actions.',
-            onBack: () => context.pop(),
-          ),
+          SettingsPageHeader(title: 'Device', onBack: () => context.pop()),
           const SizedBox(height: 28),
           DeviceSection(deviceController: _deviceController),
           const SizedBox(height: 14),

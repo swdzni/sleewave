@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'models/server_status.dart';
 import 'models/source_info.dart';
 import 'models/track.dart';
+import 'constants/app_constants.dart';
 import 'providers.dart';
 import 'repositories/library_repository.dart';
 import 'repositories/playlist_repository.dart';
@@ -93,7 +94,10 @@ class AppStartupController extends SafeChangeNotifier {
       await sync.retryPending(backend);
       final savedSongs = <Track>[];
       final seenIds = <String>{};
-      for (final song in await backend.getSavedSongs()) {
+      final page = await backend.getSavedSongsPage(
+        limit: AppConstants.homeServerPreviewLimit,
+      );
+      for (final song in page.songs) {
         final merged = await tracks.mergeRemoteTrack(song);
         if (seenIds.add(merged.id)) {
           savedSongs.add(merged);
