@@ -146,11 +146,16 @@ class _QueueSheetBody extends ConsumerWidget {
                           ),
                           itemCount: queue.length,
                           onReorderStart: (_) => AppHaptics.light(),
-                          onReorder: (oldIndex, newIndex) async {
-                            AppHaptics.light();
-                            await ref
+                          onReorder: (oldIndex, newIndex) {
+                            ref
                                 .read(playerViewModelProvider)
                                 .reorderQueue(oldIndex, newIndex);
+                          },
+                          onReorderEnd: (_) {
+                            AppHaptics.light();
+                            ref
+                                .read(playerViewModelProvider)
+                                .rebuildPreparedQueue();
                           },
                           itemBuilder: (context, index) {
                             final track = queue[index];

@@ -130,6 +130,103 @@ void main() {
     expect(playback.snapshot.isPlaying, isFalse);
   });
 
+  test('repeat-all completion wraps to the first visible queue item', () async {
+    final queueTracks = [_track('one'), _track('two')];
+
+    await playback.playTrack(
+      queueTracks.first,
+      backend: backend,
+      queue: queueTracks,
+      recentHistoryLimit: 20,
+      directUrlSourceIds: const [],
+    );
+    await playback.cycleMode();
+    await playback.cycleMode();
+    engine.emitCurrentIndex(1);
+    await _drain();
+
+    engine.complete();
+    await _drain();
+
+    expect(engine.seekCalls.last.index, 0);
+    expect(queue.index, 0);
+    expect(playback.snapshot.currentTrack?.id, 'one');
+    expect(playback.snapshot.isPlaying, isTrue);
+  });
+
+  test('repeat-one completion restarts the same native source', () async {
+    final queueTracks = [_track('one'), _track('two')];
+
+    await playback.playTrack(
+      queueTracks.first,
+      backend: backend,
+      queue: queueTracks,
+      recentHistoryLimit: 20,
+      directUrlSourceIds: const [],
+    );
+    await playback.cycleMode();
+    await playback.cycleMode();
+    await playback.cycleMode();
+    engine.emitCurrentIndex(1);
+    await _drain();
+
+    engine.complete();
+    await _drain();
+
+    expect(engine.seekCalls.last.index, isNull);
+    expect(engine.seekCalls.last.position, Duration.zero);
+    expect(queue.index, 1);
+    expect(playback.snapshot.currentTrack?.id, 'two');
+    expect(playback.snapshot.isPlaying, isTrue);
+  });
+
+  test('shuffle follows the displayed shuffled queue order', () async {
+    final queueTracks = [_track('one'), _track('two'), _track('three')];
+
+    await playback.playTrack(
+      queueTracks.first,
+      backend: backend,
+      queue: queueTracks,
+      recentHistoryLimit: 20,
+      directUrlSourceIds: const [],
+    );
+    await playback.cycleMode();
+    final expectedNextId = playback.snapshot.queue[1].id;
+
+    await playback.next(backend: backend);
+    await _drain();
+
+    expect(queue.index, 1);
+    expect(playback.snapshot.currentTrack?.id, expectedNextId);
+  });
+
+  test('queue reorder does not rebuild sources until requested', () async {
+    final queueTracks = [_track('one'), _track('two'), _track('three')];
+
+    await playback.playTrack(
+      queueTracks.first,
+      backend: backend,
+      queue: queueTracks,
+      recentHistoryLimit: 20,
+      directUrlSourceIds: const [],
+    );
+
+    await playback.reorderQueue(2, 1);
+    await _drain();
+
+    expect(engine.setAudioSourcesCalls, 1);
+    expect(playback.snapshot.queue.map((track) => track.id), [
+      'one',
+      'three',
+      'two',
+    ]);
+
+    await playback.rebuildPreparedQueue();
+    await _drain();
+
+    expect(engine.setAudioSourcesCalls, 2);
+  });
+
   test('player errors skip failed tracks and rebuild without them', () async {
     final queueTracks = [_track('one'), _track('two'), _track('three')];
 

@@ -7,6 +7,7 @@ import '../../../../core/models/app_settings.dart';
 import '../../../../core/models/server_status.dart';
 import '../../../../core/models/source_info.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/repositories/backend_repository.dart';
 import '../../../../core/theme/theme_controller.dart';
@@ -128,11 +129,12 @@ class SettingsViewModel extends SafeChangeNotifier {
       notifyListeners();
       _notifyLibraryChanged();
     } catch (error) {
+      final message = _messageForError(error);
       _state = _state.copyWith(
         checking: false,
-        status: ServerStatus.problem('$error'),
+        status: ServerStatus.problem(message),
         checkedUrl: _theme.settings.backendBaseUrl,
-        message: '$error',
+        message: message,
       );
       notifyListeners();
     }
@@ -256,10 +258,11 @@ class SettingsViewModel extends SafeChangeNotifier {
       await _refreshBackend(keepConnectedStatus: true);
       _notifyLibraryChanged();
     } catch (error) {
+      final message = _messageForError(error);
       _state = _state.copyWith(
         clearingCache: false,
-        message: '$error',
-        status: ServerStatus.problem('$error'),
+        message: message,
+        status: ServerStatus.problem(message),
       );
       notifyListeners();
     }
@@ -282,10 +285,11 @@ class SettingsViewModel extends SafeChangeNotifier {
       await _refreshBackend(keepConnectedStatus: true);
       _notifyLibraryChanged();
     } catch (error) {
+      final message = _messageForError(error);
       _state = _state.copyWith(
         clearingSongs: false,
-        message: '$error',
-        status: ServerStatus.problem('$error'),
+        message: message,
+        status: ServerStatus.problem(message),
       );
       notifyListeners();
     }
@@ -343,6 +347,14 @@ class SettingsViewModel extends SafeChangeNotifier {
         .where((source) => source.available && source.supportsStream)
         .map((source) => source.id)
         .toList();
+  }
+
+  String _messageForError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    final message = '$error'.trim();
+    return message.isEmpty ? 'Online Library request failed.' : message;
   }
 }
 

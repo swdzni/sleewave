@@ -149,7 +149,10 @@ class PlaybackService extends SafeChangeNotifier {
     }
     _snapshot = _snapshot.copyWith(queue: _queue.queue);
     notifyListeners();
-    await _prepareAndStartQueue(
+  }
+
+  Future<void> rebuildPreparedQueue() {
+    return _prepareAndStartQueue(
       backend: _lastBackend,
       initialPosition: _snapshot.position,
       playAfterLoad: _player.playing,
@@ -194,7 +197,6 @@ class PlaybackService extends SafeChangeNotifier {
     final nextIndex = _nextPlayableIndex(
       backend: backend ?? _lastBackend,
       wrap: _snapshot.mode == PlaybackMode.repeatAll,
-      shuffle: _snapshot.mode == PlaybackMode.shuffle,
     );
     if (nextIndex == null) {
       _setNonStoppingPlaybackError('No playable next track.');
@@ -208,6 +210,7 @@ class PlaybackService extends SafeChangeNotifier {
     _lastBackend = backend ?? _lastBackend;
     final previousIndex = _previousPlayableIndex(
       backend: backend ?? _lastBackend,
+      wrap: _snapshot.mode == PlaybackMode.repeatAll,
     );
     if (previousIndex == null) {
       _setNonStoppingPlaybackError('No playable previous track.');
@@ -398,6 +401,13 @@ class PlaybackService extends SafeChangeNotifier {
         await _player.seek(Duration.zero);
         await _player.play();
         return;
+      }
+      if (_snapshot.mode == PlaybackMode.repeatAll) {
+        final nextIndex = _nextPlayableIndex(backend: _lastBackend, wrap: true);
+        if (nextIndex != null) {
+          await _jumpToResolvedIndex(nextIndex, backend: _lastBackend);
+          return;
+        }
       }
       _snapshot = _snapshot.copyWith(isPlaying: false, isBuffering: false);
       notifyListeners();
@@ -639,9 +649,13 @@ class PlaybackService extends SafeChangeNotifier {
     );
   }
 
-  int? _previousPlayableIndex({required BackendRepository? backend}) {
+  int? _previousPlayableIndex({
+    required BackendRepository? backend,
+    bool wrap = false,
+  }) {
     return _queue.previousPlayableIndex(
       isPlayable: (track) => _isProbablyPlayable(track, backend: backend),
+      wrap: wrap,
     );
   }
 
@@ -736,8 +750,9 @@ class PlaybackService extends SafeChangeNotifier {
     await _player.setShuffleModeEnabled(false);
     final loopMode = switch (mode) {
       PlaybackMode.repeatOne => LoopMode.one,
-      PlaybackMode.repeatAll => LoopMode.all,
-      PlaybackMode.normal || PlaybackMode.shuffle => LoopMode.off,
+      PlaybackMode.normal ||
+      PlaybackMode.shuffle ||
+      PlaybackMode.repeatAll => LoopMode.off,
     };
     await _player.setLoopMode(loopMode);
   }
@@ -766,6 +781,24 @@ class PlaybackService extends SafeChangeNotifier {
           lower.contains('not found') ||
           lower.contains('source error')) {
         return 'Track source was not found.';
+      }
+      if (lower.contains('409') || lower.contains('conflict')) {
+        return 'Track is already saved on this device.';
+      }
+      if (lower.contains('400') || lower.contains('bad request')) {
+        return 'Track request is not valid.';
+      }
+      if (lower.contains('422') || lower.contains('validation')) {
+        return 'Track request details are not valid.';
+      }
+      if (lower.contains('502')) {
+        return 'Track could not be prepared. Try again or choose another source.';
+      }
+      if (lower.contains('503')) {
+        return 'Source is unavailable. Try another source or refresh Online Library.';
+      }
+      if (lower.contains('500')) {
+        return 'Online Library had a server problem. Try again.';
       }
       if (lower.contains('timeout')) {
         return 'Track source timed out.';

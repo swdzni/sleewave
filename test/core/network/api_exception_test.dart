@@ -8,7 +8,7 @@ void main() {
     });
 
     expect(error.code, 'search_result_not_found');
-    expect(error.message, 'Track needs to be refreshed.');
+    expect(error.message, 'Track needs to be refreshed from Online Library.');
     expect(error.isRecoverable, isTrue);
   });
 
@@ -25,7 +25,10 @@ void main() {
       'error': {'code': 'provider_unavailable', 'message': 'Unavailable'},
     });
 
-    expect(error.message, 'Source is unavailable.');
+    expect(
+      error.message,
+      'Source is unavailable. Try another source or refresh Online Library.',
+    );
     expect(error.isRecoverable, isTrue);
   });
 
@@ -34,14 +37,32 @@ void main() {
       'error': {'code': 'track_preparation_failed'},
     });
 
-    expect(error.message, 'Track could not be prepared.');
+    expect(
+      error.message,
+      'Track could not be prepared. Try again or choose another source.',
+    );
     expect(error.isRecoverable, isTrue);
   });
 
   test('maps plain server errors to friendly messages', () {
     final error = ApiException.fromResponse(500, 'not json');
 
-    expect(error.message, 'Online Library had a server problem.');
+    expect(error.message, 'Online Library had a server problem. Try again.');
     expect(error.isRecoverable, isTrue);
+  });
+
+  test('maps generic documented HTTP errors', () {
+    expect(
+      ApiException.fromResponse(404, 'missing').message,
+      'Requested Online Library item was not found.',
+    );
+    expect(
+      ApiException.fromResponse(409, 'conflict').message,
+      'This action conflicts with the current library state.',
+    );
+    expect(
+      ApiException.fromResponse(422, 'bad payload').message,
+      'Some request details are not valid.',
+    );
   });
 }

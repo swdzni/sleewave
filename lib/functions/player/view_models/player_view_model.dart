@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../../core/app_startup_controller.dart';
 import '../../../core/models/track.dart';
 import '../../../core/providers.dart';
 import '../../../core/services/playback/playback_service.dart';
@@ -25,13 +24,6 @@ class PlayerViewModel extends SafeChangeNotifier {
     List<Track>? queue,
     String? activePlaylistId,
   }) async {
-    final connected = _ref
-        .read(appStartupControllerProvider)
-        .status
-        .isConnected;
-    if (!_isPlayable(track, connected)) {
-      return;
-    }
     final settings = _ref.read(themeControllerProvider).settings;
     await _playback.playTrack(
       track,
@@ -63,12 +55,9 @@ class PlayerViewModel extends SafeChangeNotifier {
   );
   Future<void> reorderQueue(int oldIndex, int newIndex) =>
       _playback.reorderQueue(oldIndex, newIndex);
+  Future<void> rebuildPreparedQueue() => _playback.rebuildPreparedQueue();
   Future<void> cycleMode() => _playback.cycleMode();
   void replaceCurrentTrack(Track track) => _playback.replaceCurrentTrack(track);
-
-  bool _isPlayable(Track track, bool connected) {
-    return track.isLocalPlayable || (track.resultId != null && connected);
-  }
 
   void _sync() {
     _state = PlayerState(snapshot: _playback.snapshot);

@@ -84,6 +84,19 @@ void main() {
     expect(queue.index, 2);
   });
 
+  test('previous playable index wraps when repeat queue is active', () {
+    final queue = QueueService()
+      ..setQueue([_track('one'), _track('two'), _track('three')]);
+
+    final previous = queue.previousPlayableIndex(
+      wrap: true,
+      isPlayable: (track) => track.id != 'two',
+    );
+
+    expect(previous, 2);
+    expect(queue.index, 0);
+  });
+
   test('repeat wrap skips unavailable tracks', () {
     final queue = QueueService()
       ..setQueue([

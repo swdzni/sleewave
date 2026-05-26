@@ -94,21 +94,24 @@ class ApiException implements Exception {
   static String _friendlyMessage(String code, String fallback) {
     switch (code) {
       case 'bad_request':
+        return fallback.trim().isEmpty ? 'Request is not valid.' : fallback;
       case 'validation_error':
-        return fallback;
+        return fallback.trim().isEmpty
+            ? 'Some request details are not valid.'
+            : fallback;
       case 'provider_not_found':
-        return 'Source is no longer available.';
+        return 'This source is no longer available. Refresh sources in Settings.';
       case 'search_result_not_found':
       case 'cache_entry_not_found':
-        return 'Track needs to be refreshed.';
+        return 'Track needs to be refreshed from Online Library.';
       case 'track_already_on_device':
         return 'Already downloaded';
       case 'track_preparation_failed':
-        return 'Track could not be prepared.';
+        return 'Track could not be prepared. Try again or choose another source.';
       case 'provider_unavailable':
-        return 'Source is unavailable.';
+        return 'Source is unavailable. Try another source or refresh Online Library.';
       case 'internal_server_error':
-        return 'Online Library had a server problem.';
+        return 'Online Library had a server problem. Try again.';
       default:
         if (fallback == 'Online Library request failed.' &&
             statusCodeMessage(code) != null) {
@@ -120,9 +123,15 @@ class ApiException implements Exception {
 
   static String? statusCodeMessage(String code) {
     return switch (code) {
-      'http_502' => 'Track could not be prepared.',
-      'http_500' => 'Online Library had a server problem.',
-      'http_503' => 'Source is unavailable.',
+      'http_400' => 'Request is not valid.',
+      'http_404' => 'Requested Online Library item was not found.',
+      'http_409' => 'This action conflicts with the current library state.',
+      'http_422' => 'Some request details are not valid.',
+      'http_500' => 'Online Library had a server problem. Try again.',
+      'http_502' =>
+        'Track could not be prepared. Try again or choose another source.',
+      'http_503' =>
+        'Source is unavailable. Try another source or refresh Online Library.',
       _ => null,
     };
   }
@@ -132,6 +141,7 @@ class ApiException implements Exception {
         code == 'cache_entry_not_found' ||
         code == 'provider_unavailable' ||
         code == 'track_preparation_failed' ||
+        statusCode == 404 ||
         statusCode == 502 ||
         statusCode == 500 ||
         statusCode == 503;

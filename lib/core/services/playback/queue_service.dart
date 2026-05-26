@@ -85,11 +85,22 @@ class QueueService extends SafeChangeNotifier {
     return null;
   }
 
-  int? previousPlayableIndex({required TrackPredicate isPlayable}) {
+  int? previousPlayableIndex({
+    required TrackPredicate isPlayable,
+    bool wrap = false,
+  }) {
     if (_queue.isEmpty) {
       return null;
     }
     for (var index = _index - 1; index >= 0; index--) {
+      if (isPlayable(_queue[index])) {
+        return index;
+      }
+    }
+    if (!wrap) {
+      return null;
+    }
+    for (var index = _queue.length - 1; index > _index; index--) {
       if (isPlayable(_queue[index])) {
         return index;
       }

@@ -22,21 +22,34 @@ class PlayerScreen extends ConsumerStatefulWidget {
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Duration? _dragPosition;
+  Duration? _pendingSeekPosition;
 
   @override
   Widget build(BuildContext context) {
     final vm = ref.watch(playerViewModelProvider);
     final snapshot = vm.state.snapshot;
     final track = snapshot.currentTrack;
-    final timelineReady =
-        !snapshot.isBuffering && snapshot.duration > Duration.zero;
+    final timelineReady = snapshot.duration > Duration.zero;
+    final pendingSeekPosition = _pendingSeekPosition;
+    if (pendingSeekPosition != null &&
+        !snapshot.isBuffering &&
+        (snapshot.position - pendingSeekPosition).abs() <
+            const Duration(milliseconds: 900)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isDraggingTimeline) {
+          setState(() => _pendingSeekPosition = null);
+        }
+      });
+    }
     final displayedPosition = timelineReady
-        ? (_dragPosition ?? snapshot.position)
+        ? _clampPosition(
+            _dragPosition ?? _pendingSeekPosition ?? snapshot.position,
+            snapshot.duration,
+          )
         : Duration.zero;
     final tokens = context.themeTokens;
     return SwipeDismissLayer(
       onDismiss: () {
-        AppHaptics.light();
         context.pop();
       },
       child: Scaffold(
@@ -73,7 +86,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             IconButton(
                               tooltip: 'Close',
                               onPressed: () {
-                                AppHaptics.light();
                                 context.pop();
                               },
                               icon: const Icon(
@@ -187,11 +199,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                   final next = Duration(
                                     milliseconds: value.round(),
                                   );
-                                  setState(() => _dragPosition = next);
+                                  setState(() {
+                                    _dragPosition = null;
+                                    _pendingSeekPosition = next;
+                                  });
                                   await vm.seek(next);
-                                  if (mounted) {
-                                    setState(() => _dragPosition = null);
-                                  }
                                 }
                               : null,
                         ),
@@ -233,5 +245,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final minutes = safe.inMinutes;
     final seconds = safe.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+
+  bool get _isDraggingTimeline => _dragPosition != null;
+
+  Duration _clampPosition(Duration position, Duration duration) {
+    if (position.isNegative) {
+      return Duration.zero;
+    }
+    if (position > duration) {
+      return duration;
+    }
+    return position;
   }
 }
