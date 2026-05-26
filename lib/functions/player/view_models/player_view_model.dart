@@ -55,7 +55,6 @@ class PlayerViewModel extends SafeChangeNotifier {
   );
   Future<void> reorderQueue(int oldIndex, int newIndex) =>
       _playback.reorderQueue(oldIndex, newIndex);
-  Future<void> rebuildPreparedQueue() => _playback.rebuildPreparedQueue();
   Future<void> cycleMode() => _playback.cycleMode();
   void replaceCurrentTrack(Track track) => _playback.replaceCurrentTrack(track);
 

@@ -68,7 +68,7 @@ class PlaybackService extends SafeChangeNotifier {
   bool _handlingPlayerError = false;
   int _loadGeneration = 0;
   bool _playlistPrepared = false;
-  List<int> _sourceQueueIndices = const [];
+  List<String> _sourceTrackIds = const [];
   final Set<String> _failedTrackIds = {};
   final Set<String> _directFallbackTrackIds = {};
   String? _lastRecordedTrackId;
@@ -109,7 +109,7 @@ class PlaybackService extends SafeChangeNotifier {
     _directFallbackTrackIds.clear();
     _lastRecordedTrackId = null;
     _playlistPrepared = false;
-    _sourceQueueIndices = const [];
+    _sourceTrackIds = const [];
     if (queue != null && queue.isNotEmpty) {
       final startIndex = queue.indexWhere((item) => item.id == track.id);
       _queue.setQueue(
@@ -143,20 +143,22 @@ class PlaybackService extends SafeChangeNotifier {
   }
 
   Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    final currentTrackId = _snapshot.currentTrack?.id ?? _queue.current?.id;
     final resolvedNewIndex = _queue.reorder(oldIndex, newIndex);
     if (resolvedNewIndex == null) {
       return;
     }
+    if (currentTrackId != null) {
+      final preservedIndex = _queue.queue.indexWhere(
+        (track) => track.id == currentTrackId,
+      );
+      if (preservedIndex != -1 && preservedIndex != _queue.index) {
+        _queue.jumpTo(preservedIndex);
+      }
+    }
     _snapshot = _snapshot.copyWith(queue: _queue.queue);
     notifyListeners();
-  }
-
-  Future<void> rebuildPreparedQueue() {
-    return _prepareAndStartQueue(
-      backend: _lastBackend,
-      initialPosition: _snapshot.position,
-      playAfterLoad: _player.playing,
-    );
+    await _syncPreparedSourceOrderToQueue();
   }
 
   Future<void> togglePlayPause() async {
@@ -170,7 +172,7 @@ class PlaybackService extends SafeChangeNotifier {
   Future<void> stop() async {
     _loadGeneration++;
     _playlistPrepared = false;
-    _sourceQueueIndices = const [];
+    _sourceTrackIds = const [];
     await _player.stop();
     _snapshot = _snapshot.copyWith(
       isPlaying: false,
@@ -226,11 +228,7 @@ class PlaybackService extends SafeChangeNotifier {
       _queue.shuffleKeepingCurrent();
       _snapshot = _snapshot.copyWith(mode: mode, queue: _queue.queue);
       notifyListeners();
-      await _prepareAndStartQueue(
-        backend: _lastBackend,
-        initialPosition: _snapshot.position,
-        playAfterLoad: _player.playing,
-      );
+      await _syncPreparedSourceOrderToQueue();
       return;
     }
     _snapshot = _snapshot.copyWith(mode: mode, queue: _queue.queue);
@@ -331,7 +329,7 @@ class PlaybackService extends SafeChangeNotifier {
         );
         return;
       }
-      _sourceQueueIndices = prepared.queueIndices;
+      _sourceTrackIds = prepared.trackIds;
       _playlistPrepared = true;
       _snapshot = _snapshot.copyWith(queue: _queue.queue);
       notifyListeners();
@@ -429,7 +427,7 @@ class PlaybackService extends SafeChangeNotifier {
     }
     _loadGeneration++;
     _playlistPrepared = false;
-    _sourceQueueIndices = const [];
+    _sourceTrackIds = const [];
     unawaited(_player.stop());
     _snapshot = _snapshot.copyWith(
       currentTrack: track,
@@ -456,10 +454,10 @@ class PlaybackService extends SafeChangeNotifier {
   Future<void> _handleCurrentIndexChanged(int? sourceIndex) async {
     if (sourceIndex == null ||
         sourceIndex < 0 ||
-        sourceIndex >= _sourceQueueIndices.length) {
+        sourceIndex >= _sourceTrackIds.length) {
       return;
     }
-    final queueIndex = _sourceQueueIndices[sourceIndex];
+    final queueIndex = _queueIndexForSourceIndex(sourceIndex);
     if (queueIndex < 0 || queueIndex >= _queue.queue.length) {
       return;
     }
@@ -497,9 +495,9 @@ class PlaybackService extends SafeChangeNotifier {
       final queueIndex =
           sourceIndex == null ||
               sourceIndex < 0 ||
-              sourceIndex >= _sourceQueueIndices.length
+              sourceIndex >= _sourceTrackIds.length
           ? _queue.index
-          : _sourceQueueIndices[sourceIndex];
+          : _queueIndexForSourceIndex(sourceIndex);
       if (queueIndex >= 0 && queueIndex < _queue.queue.length) {
         _queue.jumpTo(queueIndex);
       }
@@ -565,6 +563,7 @@ class PlaybackService extends SafeChangeNotifier {
   }) async {
     final sources = <AudioSource>[];
     final queueIndices = <int>[];
+    final trackIds = <String>[];
     final queue = _queue.queue;
     for (var index = 0; index < queue.length; index++) {
       final track = queue[index];
@@ -581,8 +580,13 @@ class PlaybackService extends SafeChangeNotifier {
       }
       sources.add(source);
       queueIndices.add(index);
+      trackIds.add(track.id);
     }
-    return _PreparedQueueSources(sources: sources, queueIndices: queueIndices);
+    return _PreparedQueueSources(
+      sources: sources,
+      queueIndices: queueIndices,
+      trackIds: trackIds,
+    );
   }
 
   Future<AudioSource?> _audioSourceFor(
@@ -742,8 +746,51 @@ class PlaybackService extends SafeChangeNotifier {
   }
 
   int? _sourceIndexForQueueIndex(int queueIndex) {
-    final sourceIndex = _sourceQueueIndices.indexOf(queueIndex);
+    if (queueIndex < 0 || queueIndex >= _queue.queue.length) {
+      return null;
+    }
+    final sourceIndex = _sourceTrackIds.indexOf(_queue.queue[queueIndex].id);
     return sourceIndex == -1 ? null : sourceIndex;
+  }
+
+  int _queueIndexForSourceIndex(int sourceIndex) {
+    if (sourceIndex < 0 || sourceIndex >= _sourceTrackIds.length) {
+      return -1;
+    }
+    return _queue.queue.indexWhere(
+      (track) => track.id == _sourceTrackIds[sourceIndex],
+    );
+  }
+
+  Future<void> _syncPreparedSourceOrderToQueue() async {
+    if (!_playlistPrepared || _sourceTrackIds.length < 2) {
+      return;
+    }
+    final desiredSourceIds = [
+      for (final track in _queue.queue)
+        if (_sourceTrackIds.contains(track.id)) track.id,
+    ];
+    if (desiredSourceIds.length != _sourceTrackIds.length) {
+      return;
+    }
+    final working = [..._sourceTrackIds];
+    for (
+      var targetIndex = 0;
+      targetIndex < desiredSourceIds.length;
+      targetIndex++
+    ) {
+      final currentIndex = working.indexOf(desiredSourceIds[targetIndex]);
+      if (currentIndex == -1) {
+        return;
+      }
+      if (currentIndex == targetIndex) {
+        continue;
+      }
+      final moved = working.removeAt(currentIndex);
+      working.insert(targetIndex, moved);
+      _sourceTrackIds = List.unmodifiable(working);
+      await _player.moveAudioSource(currentIndex, targetIndex);
+    }
   }
 
   Future<void> _configureNativePlaybackMode(PlaybackMode mode) async {
@@ -929,8 +976,10 @@ class _PreparedQueueSources {
   const _PreparedQueueSources({
     required this.sources,
     required this.queueIndices,
+    required this.trackIds,
   });
 
   final List<AudioSource> sources;
   final List<int> queueIndices;
+  final List<String> trackIds;
 }

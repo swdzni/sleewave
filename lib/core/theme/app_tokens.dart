@@ -15,6 +15,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     required this.shadowBlur,
     required this.shadowOffset,
     required this.isMono,
+    this.isGlass = false,
   });
 
   final String fontFamily;
@@ -30,6 +31,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
   final double shadowBlur;
   final Offset shadowOffset;
   final bool isMono;
+  final bool isGlass;
 
   static const caffeine = AppThemeTokens(
     fontFamily: '.SF Pro Text',
@@ -63,6 +65,28 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     isMono: true,
   );
 
+  static const glue = AppThemeTokens(
+    fontFamily: '.SF Pro Text',
+    fontFamilyFallback: [
+      'Plus Jakarta Sans',
+      'SF Pro Text',
+      'Helvetica Neue',
+      'Arial',
+    ],
+    chipRadius: 20,
+    rowRadius: 20,
+    cardRadius: 20,
+    controlRadius: 20,
+    floatingRadius: 26,
+    sheetRadius: 28,
+    coverRadius: 18,
+    previewRadius: 18,
+    shadowBlur: 10,
+    shadowOffset: Offset(2, 2),
+    isMono: false,
+    isGlass: true,
+  );
+
   @override
   AppThemeTokens copyWith({
     String? fontFamily,
@@ -78,6 +102,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
     double? shadowBlur,
     Offset? shadowOffset,
     bool? isMono,
+    bool? isGlass,
   }) {
     return AppThemeTokens(
       fontFamily: fontFamily ?? this.fontFamily,
@@ -93,6 +118,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       shadowBlur: shadowBlur ?? this.shadowBlur,
       shadowOffset: shadowOffset ?? this.shadowOffset,
       isMono: isMono ?? this.isMono,
+      isGlass: isGlass ?? this.isGlass,
     );
   }
 
@@ -120,6 +146,7 @@ class AppThemeTokens extends ThemeExtension<AppThemeTokens> {
       shadowBlur: _lerp(shadowBlur, other.shadowBlur, t),
       shadowOffset: Offset.lerp(shadowOffset, other.shadowOffset, t)!,
       isMono: t < 0.5 ? isMono : other.isMono,
+      isGlass: t < 0.5 ? isGlass : other.isGlass,
     );
   }
 

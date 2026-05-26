@@ -153,9 +153,6 @@ class _QueueSheetBody extends ConsumerWidget {
                           },
                           onReorderEnd: (_) {
                             AppHaptics.light();
-                            ref
-                                .read(playerViewModelProvider)
-                                .rebuildPreparedQueue();
                           },
                           itemBuilder: (context, index) {
                             final track = queue[index];

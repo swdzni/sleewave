@@ -36,15 +36,34 @@ class AppListTile extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: padding,
         decoration: BoxDecoration(
-          color: enabled
+          color: tokens.isGlass
+              ? null
+              : enabled
               ? palette.surface
               : palette.surface.withValues(alpha: 0.58),
+          gradient: tokens.isGlass
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    (enabled ? palette.surface : palette.surfaceMuted)
+                        .withValues(alpha: active ? 0.9 : 0.72),
+                    palette.surfaceMuted.withValues(alpha: 0.44),
+                  ],
+                )
+              : null,
           borderRadius: BorderRadius.circular(tokens.rowRadius),
-          border: Border.all(color: active ? palette.accent : palette.border),
-          boxShadow: active && palette.shadow.a > 0
+          border: Border.all(
+            color: active
+                ? palette.accent.withValues(alpha: tokens.isGlass ? 0.72 : 1)
+                : palette.border,
+          ),
+          boxShadow: (active || tokens.isGlass) && palette.shadow.a > 0
               ? [
                   BoxShadow(
-                    color: palette.accent.withValues(alpha: 0.14),
+                    color: active
+                        ? palette.accent.withValues(alpha: 0.18)
+                        : palette.shadow,
                     blurRadius: tokens.shadowBlur,
                     offset: tokens.shadowOffset,
                   ),

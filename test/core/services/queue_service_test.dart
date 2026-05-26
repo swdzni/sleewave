@@ -56,6 +56,17 @@ void main() {
     expect(queue.current?.id, 'two');
   });
 
+  test('moving another track into the current slot keeps current selected', () {
+    final queue = QueueService()
+      ..setQueue([_track('one'), _track('two'), _track('three')]);
+
+    queue.reorder(2, 0);
+
+    expect(queue.queue.map((track) => track.id), ['three', 'one', 'two']);
+    expect(queue.current?.id, 'one');
+    expect(queue.index, 1);
+  });
+
   test('next playable index skips unavailable tracks', () {
     final queue = QueueService()
       ..setQueue([_track('one'), _track('two'), _track('three')]);

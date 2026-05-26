@@ -200,7 +200,7 @@ void main() {
     expect(playback.snapshot.currentTrack?.id, expectedNextId);
   });
 
-  test('queue reorder does not rebuild sources until requested', () async {
+  test('queue reorder moves native sources without rebuilding', () async {
     final queueTracks = [_track('one'), _track('two'), _track('three')];
 
     await playback.playTrack(
@@ -215,17 +215,49 @@ void main() {
     await _drain();
 
     expect(engine.setAudioSourcesCalls, 1);
+    expect(engine.moveAudioSourceCalls, const [(2, 1)]);
     expect(playback.snapshot.queue.map((track) => track.id), [
       'one',
       'three',
       'two',
     ]);
-
-    await playback.rebuildPreparedQueue();
-    await _drain();
-
-    expect(engine.setAudioSourcesCalls, 2);
   });
+
+  test(
+    'queue reorder preserves the playing track when another item moves first',
+    () async {
+      final queueTracks = [_track('one'), _track('two'), _track('three')];
+
+      await playback.playTrack(
+        queueTracks.first,
+        backend: backend,
+        queue: queueTracks,
+        recentHistoryLimit: 20,
+        directUrlSourceIds: const [],
+      );
+
+      await playback.reorderQueue(2, 0);
+      await _drain();
+
+      expect(playback.snapshot.queue.map((track) => track.id), [
+        'three',
+        'one',
+        'two',
+      ]);
+      expect(queue.index, 1);
+      expect(playback.snapshot.currentTrack?.id, 'one');
+
+      expect(engine.setAudioSourcesCalls, 1);
+      expect(engine.moveAudioSourceCalls, const [(2, 0)]);
+      expect(engine.currentIndex, 1);
+
+      await playback.next(backend: backend);
+      await _drain();
+
+      expect(playback.snapshot.currentTrack?.id, 'two');
+      expect(engine.seekCalls.last.index, 2);
+    },
+  );
 
   test('player errors skip failed tracks and rebuild without them', () async {
     final queueTracks = [_track('one'), _track('two'), _track('three')];
@@ -316,6 +348,7 @@ class _FakeAudioEngine implements AudioPlayerEngine {
 
   List<AudioSource> sources = const [];
   final seekCalls = <_SeekCall>[];
+  final moveAudioSourceCalls = <(int, int)>[];
   int setAudioSourcesCalls = 0;
 
   @override
@@ -395,6 +428,24 @@ class _FakeAudioEngine implements AudioPlayerEngine {
       _currentIndex.add(index);
     }
     _position.add(this.position);
+  }
+
+  @override
+  Future<void> moveAudioSource(int currentIndex, int newIndex) async {
+    moveAudioSourceCalls.add((currentIndex, newIndex));
+    final next = [...sources];
+    next.insert(newIndex, next.removeAt(currentIndex));
+    sources = List.unmodifiable(next);
+    if (currentIndex == this.currentIndex) {
+      this.currentIndex = newIndex;
+    } else if (currentIndex < (this.currentIndex ?? 0) &&
+        newIndex >= (this.currentIndex ?? 0)) {
+      this.currentIndex = (this.currentIndex ?? 0) - 1;
+    } else if (currentIndex > (this.currentIndex ?? 0) &&
+        newIndex <= (this.currentIndex ?? 0)) {
+      this.currentIndex = (this.currentIndex ?? 0) + 1;
+    }
+    _currentIndex.add(this.currentIndex);
   }
 
   @override

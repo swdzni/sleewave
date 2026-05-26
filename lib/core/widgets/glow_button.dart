@@ -42,6 +42,9 @@ class _GlowButtonState extends State<GlowButton> {
     final tokens = context.themeTokens;
     final accentColor = widget.accentColor ?? palette.accent;
     final color = widget.active ? accentColor : palette.surfaceMuted;
+    final effectiveColor = enabled
+        ? color
+        : palette.surfaceMuted.withValues(alpha: 0.6);
     return Semantics(
       button: true,
       label: widget.semanticLabel ?? widget.label,
@@ -78,15 +81,37 @@ class _GlowButtonState extends State<GlowButton> {
               vertical: 10,
             ),
             decoration: BoxDecoration(
-              color: enabled
-                  ? color
-                  : palette.surfaceMuted.withValues(alpha: 0.6),
+              color: tokens.isGlass ? null : effectiveColor,
+              gradient: tokens.isGlass
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        effectiveColor.withValues(
+                          alpha: widget.active ? 0.84 : 0.66,
+                        ),
+                        palette.surfaceMuted.withValues(alpha: 0.42),
+                      ],
+                    )
+                  : null,
               borderRadius: BorderRadius.circular(tokens.controlRadius),
               border: Border.all(
-                color: widget.active ? palette.strongBorder : palette.border,
+                color: widget.active
+                    ? palette.strongBorder.withValues(
+                        alpha: tokens.isGlass ? 0.74 : 1,
+                      )
+                    : palette.border,
               ),
               boxShadow: widget.active && enabled
                   ? GlowTheme.softGlow(color)
+                  : tokens.isGlass && enabled && palette.shadow.a > 0
+                  ? [
+                      BoxShadow(
+                        color: palette.shadow,
+                        blurRadius: tokens.shadowBlur,
+                        offset: tokens.shadowOffset,
+                      ),
+                    ]
                   : null,
             ),
             child: Row(

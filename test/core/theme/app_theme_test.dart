@@ -33,6 +33,11 @@ void main() {
     expect(monoTokens.controlRadius, 0);
     expect(monoTokens.fontFamily, 'monospace');
     expect(mono.textTheme.titleMedium?.fontFamily, 'monospace');
+
+    final glue = AppTheme.fromMode(SleewaveThemeMode.glueDark);
+    final glueTokens = glue.extension<AppThemeTokens>()!;
+    expect(glueTokens.isGlass, isTrue);
+    expect(glueTokens.controlRadius, 20);
   });
 
   test('status tones are distinct from neutral text colors', () {

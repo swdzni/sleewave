@@ -22,6 +22,7 @@ abstract class AudioPlayerEngine {
   Future<void> pause();
   Future<void> stop();
   Future<void> seek(Duration? position, {int? index});
+  Future<void> moveAudioSource(int currentIndex, int newIndex);
   Future<void> setLoopMode(LoopMode loopMode);
   Future<void> setShuffleModeEnabled(bool enabled);
   Future<void> setSpeed(double speed);
@@ -89,6 +90,11 @@ class JustAudioPlayerEngine implements AudioPlayerEngine {
   @override
   Future<void> seek(Duration? position, {int? index}) {
     return _player.seek(position, index: index);
+  }
+
+  @override
+  Future<void> moveAudioSource(int currentIndex, int newIndex) {
+    return _player.moveAudioSource(currentIndex, newIndex);
   }
 
   @override

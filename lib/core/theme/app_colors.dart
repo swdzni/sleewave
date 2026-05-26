@@ -210,6 +210,50 @@ class AppColors {
     warning: Color(0xFF8A6816),
     shadow: Color(0x00000000),
   );
+
+  static const glueDark = AppPalette(
+    background: Color(0xFF1E1B18),
+    surface: Color(0xCC2C2825),
+    surfaceMuted: Color(0xB83A3633),
+    elevated: Color(0xD92C2825),
+    input: Color(0xB83A3633),
+    primaryText: Color(0xFFE2E8F0),
+    secondaryText: Color(0xFFD1D5DB),
+    tertiaryText: Color(0xFF9CA3AF),
+    border: Color(0x663A3633),
+    strongBorder: Color(0x99818CF8),
+    accent: Color(0xFF818CF8),
+    accentSoft: Color(0x59484441),
+    accentText: Color(0xFFD1D5DB),
+    primaryOnAccent: Color(0xFF1E1B18),
+    danger: Color(0xFFEF4444),
+    dangerText: Color(0xFF1E1B18),
+    success: Color(0xFF8BE7B6),
+    warning: Color(0xFFF2CF7B),
+    shadow: Color(0x66000000),
+  );
+
+  static const glueLight = AppPalette(
+    background: Color(0xFFE7E5E4),
+    surface: Color(0xCCF5F5F4),
+    surfaceMuted: Color(0xB8D6D3D1),
+    elevated: Color(0xD9F5F5F4),
+    input: Color(0xB8D6D3D1),
+    primaryText: Color(0xFF1E293B),
+    secondaryText: Color(0xFF4B5563),
+    tertiaryText: Color(0xFF6B7280),
+    border: Color(0x80D6D3D1),
+    strongBorder: Color(0xFF6366F1),
+    accent: Color(0xFF6366F1),
+    accentSoft: Color(0xB8F3E5F5),
+    accentText: Color(0xFF374151),
+    primaryOnAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFEF4444),
+    dangerText: Color(0xFFFFFFFF),
+    success: Color(0xFF2F8F58),
+    warning: Color(0xFF9A6A10),
+    shadow: Color(0x2E8F8F99),
+  );
 }
 
 extension AppPaletteLookup on BuildContext {

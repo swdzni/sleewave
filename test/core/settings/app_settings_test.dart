@@ -73,5 +73,13 @@ void main() {
       SleewaveThemeMode.fromStorage('pureDark'),
       SleewaveThemeMode.monoDark,
     );
+    expect(
+      SleewaveThemeMode.fromStorage('glueDark'),
+      SleewaveThemeMode.glueDark,
+    );
+    expect(
+      SleewaveThemeMode.fromStorage('glueLight'),
+      SleewaveThemeMode.glueLight,
+    );
   });
 }

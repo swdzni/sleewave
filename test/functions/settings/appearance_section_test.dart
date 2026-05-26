@@ -20,14 +20,19 @@ void main() {
       ),
     );
 
-    expect(find.text('Caffeine Dark'), findsOneWidget);
-    expect(find.text('Caffeine Light'), findsOneWidget);
-    expect(find.text('Mono Dark'), findsOneWidget);
-    expect(find.text('Mono Light'), findsOneWidget);
+    expect(find.text('Caffeine Dark'), findsNothing);
+    expect(find.text('Caffeine Light'), findsNothing);
+    expect(find.text('Mono Dark'), findsNothing);
+    expect(find.text('Mono Light'), findsNothing);
+    expect(find.text('Glue Dark'), findsNothing);
+    expect(find.text('Glue Light'), findsNothing);
     expect(find.text('Dynamic'), findsNothing);
+    expect(find.byKey(const ValueKey('theme-card-glueDark')), findsOneWidget);
+    expect(find.byKey(const ValueKey('theme-card-glueLight')), findsOneWidget);
     expect(find.byKey(const ValueKey('caffeine-theme-icon')), findsWidgets);
     expect(find.byKey(const ValueKey('mono-theme-icon')), findsWidgets);
-    expect(find.byWidgetPredicate(_isVisibleSwatch), findsAtLeastNWidgets(24));
+    expect(find.byKey(const ValueKey('glue-theme-icon')), findsWidgets);
+    expect(find.byWidgetPredicate(_isVisibleSwatch), findsAtLeastNWidgets(20));
   });
 }
 

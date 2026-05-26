@@ -14,6 +14,8 @@ class AppTheme {
       SleewaveThemeMode.caffeineLight => AppColors.caffeineLight,
       SleewaveThemeMode.monoDark => AppColors.monoDark,
       SleewaveThemeMode.monoLight => AppColors.monoLight,
+      SleewaveThemeMode.glueDark => AppColors.glueDark,
+      SleewaveThemeMode.glueLight => AppColors.glueLight,
     };
   }
 
@@ -23,6 +25,8 @@ class AppTheme {
       SleewaveThemeMode.caffeineLight => AppThemeTokens.caffeine,
       SleewaveThemeMode.monoDark ||
       SleewaveThemeMode.monoLight => AppThemeTokens.mono,
+      SleewaveThemeMode.glueDark ||
+      SleewaveThemeMode.glueLight => AppThemeTokens.glue,
     };
   }
 
@@ -31,7 +35,8 @@ class AppTheme {
     final tokens = tokensFor(mode);
     final brightness =
         mode == SleewaveThemeMode.caffeineLight ||
-            mode == SleewaveThemeMode.monoLight
+            mode == SleewaveThemeMode.monoLight ||
+            mode == SleewaveThemeMode.glueLight
         ? Brightness.light
         : Brightness.dark;
     final scheme = ColorScheme.fromSeed(
@@ -87,13 +92,20 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(44, 44),
-          backgroundColor: palette.accent,
+          backgroundColor: tokens.isGlass
+              ? palette.accent.withValues(alpha: 0.82)
+              : palette.accent,
           foregroundColor: palette.primaryOnAccent,
-          disabledBackgroundColor: palette.elevated.withValues(alpha: 0.55),
+          disabledBackgroundColor: palette.elevated.withValues(
+            alpha: tokens.isGlass ? 0.5 : 0.55,
+          ),
           disabledForegroundColor: palette.tertiaryText,
           textStyle: textTheme.labelLarge,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(tokens.controlRadius),
+            side: tokens.isGlass
+                ? BorderSide(color: palette.strongBorder.withValues(alpha: 0.5))
+                : BorderSide.none,
           ),
         ),
       ),
@@ -101,6 +113,9 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(44, 44),
           foregroundColor: palette.primaryText,
+          backgroundColor: tokens.isGlass
+              ? palette.surface.withValues(alpha: 0.42)
+              : null,
           disabledForegroundColor: palette.tertiaryText,
           side: BorderSide(color: palette.border),
           textStyle: textTheme.labelLarge,
@@ -178,6 +193,9 @@ class AppTheme {
         thumbShape: tokens.isMono
             ? const _SquareSliderThumbShape(size: 14)
             : const RoundSliderThumbShape(enabledThumbRadius: 8),
+        overlayShape: tokens.isMono
+            ? const _SquareSliderOverlayShape(size: 28)
+            : const RoundSliderOverlayShape(overlayRadius: 18),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: palette.elevated,
@@ -381,6 +399,48 @@ class _SquareSliderThumbShape extends SliderComponentShape {
         sliderTheme.thumbColor ??
         Colors.white;
     final half = size / 2;
+    context.canvas.drawRect(
+      Rect.fromLTRB(
+        center.dx - half,
+        center.dy - half,
+        center.dx + half,
+        center.dy + half,
+      ),
+      Paint()..color = color,
+    );
+  }
+}
+
+class _SquareSliderOverlayShape extends SliderComponentShape {
+  const _SquareSliderOverlayShape({required this.size});
+
+  final double size;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) {
+    return Size.square(size);
+  }
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final color = sliderTheme.overlayColor ?? Colors.transparent;
+    final half = (size * activationAnimation.value) / 2;
+    if (half <= 0) {
+      return;
+    }
     context.canvas.drawRect(
       Rect.fromLTRB(
         center.dx - half,

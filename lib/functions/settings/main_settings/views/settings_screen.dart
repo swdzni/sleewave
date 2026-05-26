@@ -101,6 +101,8 @@ String _themeModeLabel(SleewaveThemeMode mode) {
     SleewaveThemeMode.caffeineLight => 'Caffeine Light',
     SleewaveThemeMode.monoDark => 'Mono Dark',
     SleewaveThemeMode.monoLight => 'Mono Light',
+    SleewaveThemeMode.glueDark => 'Glue Dark',
+    SleewaveThemeMode.glueLight => 'Glue Light',
   };
 }
 

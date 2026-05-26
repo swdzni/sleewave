@@ -6,7 +6,9 @@ enum SleewaveThemeMode {
   caffeineDark,
   caffeineLight,
   monoDark,
-  monoLight;
+  monoLight,
+  glueDark,
+  glueLight;
 
   static SleewaveThemeMode fromStorage(String? value) {
     return switch (value) {
@@ -14,6 +16,8 @@ enum SleewaveThemeMode {
       'dark' || 'caffeineDark' => SleewaveThemeMode.caffeineDark,
       'white' || 'caffeineLight' => SleewaveThemeMode.caffeineLight,
       'monoLight' => SleewaveThemeMode.monoLight,
+      'glueDark' => SleewaveThemeMode.glueDark,
+      'glueLight' => SleewaveThemeMode.glueLight,
       _ => SleewaveThemeMode.caffeineDark,
     };
   }

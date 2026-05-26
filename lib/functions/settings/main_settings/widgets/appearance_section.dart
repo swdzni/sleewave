@@ -21,15 +21,25 @@ class AppearanceSection extends StatelessWidget {
     return SettingsSection(
       title: 'Themes',
       children: [
-        for (final option in _ThemeOption.options)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: _ThemeCard(
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _ThemeOption.options.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.42,
+          ),
+          itemBuilder: (context, index) {
+            final option = _ThemeOption.options[index];
+            return _ThemeCard(
               option: option,
               selected: themeMode == option.mode,
               onTap: () => onThemeChanged(option.mode),
-            ),
-          ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -51,65 +61,165 @@ class _ThemeCard extends StatelessWidget {
     final appPalette = context.palette;
     final palette = AppTheme.paletteFor(option.mode);
     final tokens = AppTheme.tokensFor(option.mode);
-    return InkWell(
-      key: ValueKey('theme-card-${option.mode.name}'),
-      borderRadius: BorderRadius.circular(context.themeTokens.rowRadius),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: AppDurations.state,
-        curve: AppCurves.standard,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected
-              ? appPalette.accentSoft.withValues(alpha: 0.66)
-              : appPalette.surfaceMuted,
-          borderRadius: BorderRadius.circular(context.themeTokens.rowRadius),
-          border: Border.all(
-            color: selected ? appPalette.strongBorder : appPalette.border,
+    return Semantics(
+      label: option.title,
+      button: true,
+      selected: selected,
+      child: InkWell(
+        key: ValueKey('theme-card-${option.mode.name}'),
+        borderRadius: BorderRadius.circular(context.themeTokens.rowRadius),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: AppDurations.state,
+          curve: AppCurves.standard,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: selected
+                ? appPalette.accentSoft.withValues(alpha: 0.54)
+                : appPalette.surfaceMuted,
+            borderRadius: BorderRadius.circular(context.themeTokens.rowRadius),
+            border: Border.all(
+              color: selected ? appPalette.strongBorder : appPalette.border,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(child: _ThemePreviewTile(option: option)),
+              Positioned(
+                top: 7,
+                left: 7,
+                child: _ThemeGlyph(
+                  mode: option.mode,
+                  palette: palette,
+                  tokens: tokens,
+                ),
+              ),
+              Positioned(
+                right: 7,
+                top: 7,
+                child: AnimatedContainer(
+                  duration: AppDurations.state,
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: selected ? palette.accent : palette.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected
+                          ? palette.accent
+                          : _visibleBorder(palette.border, palette),
+                    ),
+                  ),
+                  child: selected
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: palette.primaryOnAccent,
+                        )
+                      : null,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ThemeGlyph(mode: option.mode, palette: palette, tokens: tokens),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          option.title,
-                          style: Theme.of(context).textTheme.titleSmall,
+      ),
+    );
+  }
+}
+
+class _ThemePreviewTile extends StatelessWidget {
+  const _ThemePreviewTile({required this.option});
+
+  final _ThemeOption option;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppTheme.paletteFor(option.mode);
+    final tokens = AppTheme.tokensFor(option.mode);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(tokens.previewRadius),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.background,
+          borderRadius: BorderRadius.circular(tokens.previewRadius),
+          border: Border.all(color: _visibleBorder(palette.border, palette)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 34, 10, 9),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: palette.surface,
+                          borderRadius: BorderRadius.circular(
+                            tokens.coverRadius,
+                          ),
+                          border: Border.all(
+                            color: _visibleBorder(palette.border, palette),
+                          ),
+                          boxShadow: palette.shadow.a > 0
+                              ? [
+                                  BoxShadow(
+                                    color: palette.shadow,
+                                    blurRadius: tokens.shadowBlur,
+                                    offset: tokens.shadowOffset,
+                                  ),
+                                ]
+                              : null,
                         ),
                       ),
-                      Icon(
-                        selected
-                            ? Icons.check_circle_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                        color: selected
-                            ? appPalette.accent
-                            : appPalette.secondaryText,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: palette.surfaceMuted,
+                          borderRadius: BorderRadius.circular(
+                            tokens.controlRadius,
+                          ),
+                          border: Border.all(
+                            color: _visibleBorder(palette.border, palette),
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    option.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  _MiniUiPreview(mode: option.mode),
-                  const SizedBox(height: 10),
-                  _SwatchRow(mode: option.mode),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (final color in [
+                    palette.accent,
+                    palette.accentSoft,
+                    palette.primaryText,
+                    palette.surface,
+                  ])
+                    Expanded(
+                      child: Container(
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(
+                            tokens.previewRadius,
+                          ),
+                          border: Border.all(
+                            color: _visibleBorder(color, palette),
+                            width: 0.6,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -129,11 +239,22 @@ class _ThemeGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isGlue =
+        mode == SleewaveThemeMode.glueDark ||
+        mode == SleewaveThemeMode.glueLight;
     return SizedBox.square(
-      key: ValueKey(tokens.isMono ? 'mono-theme-icon' : 'caffeine-theme-icon'),
+      key: ValueKey(
+        isGlue
+            ? 'glue-theme-icon'
+            : tokens.isMono
+            ? 'mono-theme-icon'
+            : 'caffeine-theme-icon',
+      ),
       dimension: 42,
       child: CustomPaint(
-        painter: tokens.isMono
+        painter: isGlue
+            ? _GlueIconPainter(palette)
+            : tokens.isMono
             ? _MonoIconPainter(palette)
             : _CaffeineIconPainter(palette),
       ),
@@ -141,123 +262,44 @@ class _ThemeGlyph extends StatelessWidget {
   }
 }
 
-class _MiniUiPreview extends StatelessWidget {
-  const _MiniUiPreview({required this.mode});
+class _GlueIconPainter extends CustomPainter {
+  const _GlueIconPainter(this.palette);
 
-  final SleewaveThemeMode mode;
+  final AppPalette palette;
 
   @override
-  Widget build(BuildContext context) {
-    final palette = AppTheme.paletteFor(mode);
-    final tokens = AppTheme.tokensFor(mode);
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: palette.background,
-        borderRadius: BorderRadius.circular(tokens.previewRadius),
-        border: Border.all(color: _visibleBorder(palette.border, palette)),
-      ),
-      padding: const EdgeInsets.all(7),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(tokens.coverRadius),
-              border: Border.all(
-                color: _visibleBorder(palette.border, palette),
-              ),
-            ),
-            child: Icon(
-              Icons.music_note_rounded,
-              size: 17,
-              color: palette.secondaryText,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 7,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: palette.primaryText,
-                    borderRadius: BorderRadius.circular(tokens.previewRadius),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                FractionallySizedBox(
-                  widthFactor: 0.58,
-                  child: Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: palette.secondaryText,
-                      borderRadius: BorderRadius.circular(tokens.previewRadius),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: palette.accent,
-              borderRadius: BorderRadius.circular(tokens.controlRadius),
-              border: Border.all(
-                color: _visibleBorder(palette.strongBorder, palette),
-              ),
-            ),
-          ),
-        ],
-      ),
+  void paint(Canvas canvas, Size size) {
+    final border = Paint()
+      ..color = palette.strongBorder.withValues(alpha: 0.72)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    final highlight = Paint()
+      ..color = palette.accent.withValues(alpha: 0.86)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.1
+      ..strokeCap = StrokeCap.round;
+
+    void pane(Rect rect, Color color) {
+      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(13));
+      canvas.drawRRect(rrect, Paint()..color = color);
+      canvas.drawRRect(rrect, border);
+    }
+
+    pane(
+      Rect.fromLTWH(8, 8, 24, 24),
+      palette.surfaceMuted.withValues(alpha: 0.62),
     );
+    pane(
+      Rect.fromLTWH(11, 11, 24, 24),
+      palette.surface.withValues(alpha: 0.78),
+    );
+    canvas.drawLine(const Offset(17, 18), const Offset(29, 18), highlight);
+    canvas.drawLine(const Offset(17, 25), const Offset(25, 25), highlight);
   }
-}
-
-class _SwatchRow extends StatelessWidget {
-  const _SwatchRow({required this.mode});
-
-  final SleewaveThemeMode mode;
 
   @override
-  Widget build(BuildContext context) {
-    final palette = AppTheme.paletteFor(mode);
-    final tokens = AppTheme.tokensFor(mode);
-    final colors = [
-      palette.background,
-      palette.surface,
-      palette.accent,
-      palette.accentSoft,
-      palette.success,
-      palette.warning,
-      palette.danger,
-    ];
-    return Row(
-      children: [
-        for (var index = 0; index < colors.length; index++)
-          Container(
-            key: ValueKey(
-              'theme-swatch-${mode.name}-$index-${colors[index].toARGB32()}',
-            ),
-            width: 22,
-            height: 22,
-            margin: const EdgeInsets.only(right: 6),
-            decoration: BoxDecoration(
-              color: colors[index],
-              borderRadius: BorderRadius.circular(tokens.previewRadius / 2),
-              border: Border.all(color: _visibleBorder(colors[index], palette)),
-            ),
-          ),
-      ],
-    );
+  bool shouldRepaint(covariant _GlueIconPainter oldDelegate) {
+    return oldDelegate.palette != palette;
   }
 }
 
@@ -351,36 +393,20 @@ Color _visibleBorder(Color color, AppPalette palette) {
 }
 
 class _ThemeOption {
-  const _ThemeOption({
-    required this.mode,
-    required this.title,
-    required this.subtitle,
-  });
+  const _ThemeOption({required this.mode, required this.title});
 
   final SleewaveThemeMode mode;
   final String title;
-  final String subtitle;
 
   static const options = [
-    _ThemeOption(
-      mode: SleewaveThemeMode.caffeineDark,
-      title: 'Caffeine Dark',
-      subtitle: 'Warm black, cream controls, soft corners.',
-    ),
+    _ThemeOption(mode: SleewaveThemeMode.caffeineDark, title: 'Caffeine Dark'),
     _ThemeOption(
       mode: SleewaveThemeMode.caffeineLight,
       title: 'Caffeine Light',
-      subtitle: 'Clean white, roasted accent, soft controls.',
     ),
-    _ThemeOption(
-      mode: SleewaveThemeMode.monoDark,
-      title: 'Mono Dark',
-      subtitle: 'Terminal sharpness with graphite contrast.',
-    ),
-    _ThemeOption(
-      mode: SleewaveThemeMode.monoLight,
-      title: 'Mono Light',
-      subtitle: 'White, ink, square edges, quiet chrome.',
-    ),
+    _ThemeOption(mode: SleewaveThemeMode.monoDark, title: 'Mono Dark'),
+    _ThemeOption(mode: SleewaveThemeMode.monoLight, title: 'Mono Light'),
+    _ThemeOption(mode: SleewaveThemeMode.glueDark, title: 'Glue Dark'),
+    _ThemeOption(mode: SleewaveThemeMode.glueLight, title: 'Glue Light'),
   ];
 }
