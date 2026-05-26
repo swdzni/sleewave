@@ -213,9 +213,7 @@ class _ActionTile extends StatelessWidget {
       leading: Icon(icon, color: color),
       title: Text(label, style: TextStyle(color: color)),
       onTap: () {
-        if (danger) {
-          AppHaptics.warning();
-        } else {
+        if (danger || label.toLowerCase().startsWith('delete')) {
           AppHaptics.light();
         }
         Navigator.pop(context);

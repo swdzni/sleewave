@@ -30,23 +30,26 @@ class MiniPlayer extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: GestureDetector(
           onTap: () {
-            AppHaptics.selection();
+            AppHaptics.light();
             context.push('/player');
           },
           onLongPress: () {
-            AppHaptics.medium();
+            AppHaptics.light();
             showPlayerTrackActions(context: context, ref: ref, track: track);
           },
           onVerticalDragEnd: (details) {
             if ((details.primaryVelocity ?? 0) < -120) {
+              AppHaptics.light();
               context.push('/player');
             }
           },
           onHorizontalDragEnd: (details) {
             final velocity = details.primaryVelocity ?? 0;
             if (velocity < -150) {
+              AppHaptics.light();
               vm.next();
             } else if (velocity > 150) {
+              AppHaptics.light();
               vm.restartOrPrevious();
             }
           },

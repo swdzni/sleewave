@@ -166,16 +166,16 @@ class QueueService extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  void reorder(int oldIndex, int newIndex) {
+  int? reorder(int oldIndex, int newIndex) {
     if (oldIndex < 0 || oldIndex >= _queue.length) {
-      return;
+      return null;
     }
     var targetIndex = newIndex;
     if (targetIndex > oldIndex) {
       targetIndex -= 1;
     }
     if (targetIndex < 0 || targetIndex >= _queue.length) {
-      return;
+      return null;
     }
     final next = [..._queue];
     final moved = next.removeAt(oldIndex);
@@ -189,5 +189,6 @@ class QueueService extends SafeChangeNotifier {
       _index += 1;
     }
     notifyListeners();
+    return targetIndex;
   }
 }

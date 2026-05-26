@@ -1,9 +1,11 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../../core/app_startup_controller.dart';
 import '../../../../core/models/app_settings.dart';
 import '../../../../core/models/server_status.dart';
+import '../../../../core/models/source_info.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/repositories/backend_repository.dart';
@@ -49,7 +51,10 @@ class SettingsViewModel extends SafeChangeNotifier {
 
   void load() {
     _state = SettingsState(
-      settings: _theme.settings,
+      settings: _settingsWithEffectiveDirectUrlSources(
+        _theme.settings,
+        _startup.sources,
+      ),
       status: _startup.status,
       sources: _startup.sources,
       httpWarning: AppSettings.shouldWarnForHttp(
@@ -94,6 +99,11 @@ class SettingsViewModel extends SafeChangeNotifier {
       final settings = _theme.settings.copyWith(
         backendBaseUrl: url,
         selectedSourceIds: const [],
+        directUrlEnabled: false,
+        directUrlSourceIds: _effectiveDirectUrlSources(
+          _theme.settings,
+          sources,
+        ),
       );
       await _theme.saveSettings(settings);
       _state = _state.copyWith(
@@ -167,7 +177,50 @@ class SettingsViewModel extends SafeChangeNotifier {
   }
 
   Future<void> setDirectUrlEnabled(bool enabled) async {
-    final settings = _theme.settings.copyWith(directUrlEnabled: enabled);
+    await setDirectUrlForAllSources(enabled);
+  }
+
+  Future<void> setDirectUrlForAllSources(bool enabled) async {
+    final streamableIds = _streamableSourceIds(_state.sources);
+    final settings = _theme.settings.copyWith(
+      directUrlEnabled: _state.sources.isEmpty ? enabled : false,
+      directUrlSourceIds: enabled ? streamableIds : const [],
+    );
+    await _theme.saveSettings(settings);
+    _state = _state.copyWith(
+      settings: _settingsWithEffectiveDirectUrlSources(
+        settings,
+        _state.sources,
+      ),
+      message: 'Saved',
+    );
+    notifyListeners();
+  }
+
+  Future<void> setDirectUrlForSource(String sourceId, bool enabled) async {
+    final source = _state.sources
+        .where((candidate) => candidate.id == sourceId)
+        .firstOrNull;
+    if (enabled &&
+        (source == null || !source.available || !source.supportsStream)) {
+      return;
+    }
+    final selected = _effectiveDirectUrlSources(
+      _theme.settings,
+      _state.sources,
+    ).toSet();
+    if (enabled) {
+      selected.add(sourceId);
+    } else {
+      selected.remove(sourceId);
+    }
+    final settings = _theme.settings.copyWith(
+      directUrlEnabled: false,
+      directUrlSourceIds: _normalizeDirectUrlSources(
+        selected.toList(),
+        _state.sources,
+      ),
+    );
     await _theme.saveSettings(settings);
     _state = _state.copyWith(settings: settings, message: 'Saved');
     notifyListeners();
@@ -177,6 +230,8 @@ class SettingsViewModel extends SafeChangeNotifier {
     final settings = _theme.settings.copyWith(
       backendBaseUrl: null,
       selectedSourceIds: const [],
+      directUrlEnabled: false,
+      directUrlSourceIds: const [],
     );
     await _theme.saveSettings(settings);
     await _refreshBackend();
@@ -251,6 +306,43 @@ class SettingsViewModel extends SafeChangeNotifier {
     if (ref != null) {
       notifyLibraryChanged(ref);
     }
+  }
+
+  List<String> _normalizeDirectUrlSources(
+    List<String> selected,
+    List<SourceInfo> sources,
+  ) {
+    final streamableIds = _streamableSourceIds(sources);
+    return [
+      for (final id in streamableIds)
+        if (selected.contains(id)) id,
+    ];
+  }
+
+  AppSettings _settingsWithEffectiveDirectUrlSources(
+    AppSettings settings,
+    List<SourceInfo> sources,
+  ) {
+    return settings.copyWith(
+      directUrlSourceIds: _effectiveDirectUrlSources(settings, sources),
+    );
+  }
+
+  List<String> _effectiveDirectUrlSources(
+    AppSettings settings,
+    List<SourceInfo> sources,
+  ) {
+    if (settings.directUrlEnabled) {
+      return _streamableSourceIds(sources);
+    }
+    return _normalizeDirectUrlSources(settings.directUrlSourceIds, sources);
+  }
+
+  List<String> _streamableSourceIds(List<SourceInfo> sources) {
+    return sources
+        .where((source) => source.available && source.supportsStream)
+        .map((source) => source.id)
+        .toList();
   }
 }
 

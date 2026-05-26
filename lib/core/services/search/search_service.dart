@@ -20,6 +20,24 @@ class SearchService {
     return next;
   }
 
+  List<Track> appendResult({
+    required List<Track> existing,
+    required Track incoming,
+  }) {
+    final duplicateIndex = existing.indexWhere(
+      (track) => _sameTrack(track, incoming),
+    );
+    if (duplicateIndex == -1) {
+      return [...existing, incoming];
+    }
+    return [
+      for (var index = 0; index < existing.length; index++)
+        index == duplicateIndex
+            ? _betterTrack(existing[duplicateIndex], incoming)
+            : existing[index],
+    ];
+  }
+
   bool _sameTrack(Track a, Track b) {
     if (a.resultId != null && a.resultId == b.resultId) {
       return true;

@@ -44,4 +44,18 @@ void main() {
 
     expect(state.effectiveSourceIds(), ['source-b']);
   });
+
+  test('stores notices separately from errors', () {
+    final state = const SearchState().copyWith(
+      error: 'Cannot reach Online Library.',
+      errorTitle: 'Search failed',
+      notice: 'Removed local download.',
+      noticeTitle: 'Deleted',
+    );
+
+    expect(state.error, 'Cannot reach Online Library.');
+    expect(state.errorTitle, 'Search failed');
+    expect(state.notice, 'Removed local download.');
+    expect(state.noticeTitle, 'Deleted');
+  });
 }

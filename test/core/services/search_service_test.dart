@@ -13,10 +13,11 @@ void main() {
     bool local = false,
     bool cached = false,
     String? trackKey,
+    String? title,
   }) {
     return Track(
       id: id,
-      title: 'Same Song',
+      title: title ?? 'Same Song',
       artist: 'Same Artist',
       durationSeconds: 200,
       trackKey: trackKey,
@@ -48,5 +49,43 @@ void main() {
     );
 
     expect(merged.first.id, 'cached');
+  });
+
+  test('append result preserves existing pagination order', () {
+    final appended = service.appendResult(
+      existing: [
+        track(id: 'remote-a', trackKey: 'a', title: 'Page A'),
+        track(id: 'remote-b', trackKey: 'b', title: 'Page B'),
+      ],
+      incoming: track(
+        id: 'cached-c',
+        cached: true,
+        trackKey: 'c',
+        title: 'Page C',
+      ),
+    );
+
+    expect(appended.map((track) => track.id), [
+      'remote-a',
+      'remote-b',
+      'cached-c',
+    ]);
+  });
+
+  test('append result replaces duplicates in place', () {
+    final appended = service.appendResult(
+      existing: [
+        track(id: 'remote-a', trackKey: 'a', title: 'Page A'),
+        track(id: 'remote-b', trackKey: 'b', title: 'Page B'),
+      ],
+      incoming: track(
+        id: 'cached-b',
+        cached: true,
+        trackKey: 'b',
+        title: 'Page B',
+      ),
+    );
+
+    expect(appended.map((track) => track.id), ['remote-a', 'cached-b']);
   });
 }

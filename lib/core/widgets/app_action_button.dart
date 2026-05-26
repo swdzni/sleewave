@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
-import '../utils/app_haptics.dart';
 
 class AppActionButton extends StatelessWidget {
   const AppActionButton({
@@ -24,16 +23,7 @@ class AppActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveOnPressed = loading || onPressed == null
-        ? null
-        : () {
-            if (danger) {
-              AppHaptics.warning();
-            } else {
-              AppHaptics.light();
-            }
-            onPressed!();
-          };
+    final effectiveOnPressed = loading || onPressed == null ? null : onPressed;
     final childIcon = AnimatedSwitcher(
       duration: AppDurations.state,
       child: loading

@@ -95,6 +95,8 @@ class SearchViewModel extends SafeChangeNotifier {
       isSearching: false,
       isLoadingMore: false,
       error: null,
+      errorTitle: 'Search failed',
+      notice: null,
     );
     notifyListeners();
     _debounce?.cancel();
@@ -152,6 +154,8 @@ class SearchViewModel extends SafeChangeNotifier {
         hasMore: false,
         nextOffset: 0,
         error: null,
+        errorTitle: 'Search failed',
+        notice: null,
       );
       notifyListeners();
       return;
@@ -170,6 +174,8 @@ class SearchViewModel extends SafeChangeNotifier {
       warnings: const [],
       isLoadingMore: false,
       error: null,
+      errorTitle: 'Search failed',
+      notice: null,
       hasMore: false,
       nextOffset: 0,
       status: _startup.status,
@@ -215,6 +221,7 @@ class SearchViewModel extends SafeChangeNotifier {
       _state = _state.copyWith(
         isSearching: false,
         error: _state.localMatches.isEmpty ? message : null,
+        errorTitle: 'Search failed',
         warnings: _state.localMatches.isEmpty
             ? _state.warnings
             : {..._state.warnings, 'Online Library unavailable.'}.toList(),
@@ -247,10 +254,16 @@ class SearchViewModel extends SafeChangeNotifier {
       _state.query.trim(),
       _state.effectiveSourceIds(),
     );
+    final offset = _state.nextOffset;
     _loadMoreCancelToken?.cancel();
     final cancelToken = CancelToken();
     _loadMoreCancelToken = cancelToken;
-    _state = _state.copyWith(isLoadingMore: true, error: null);
+    _state = _state.copyWith(
+      isLoadingMore: true,
+      error: null,
+      errorTitle: 'Search failed',
+      notice: null,
+    );
     notifyListeners();
     try {
       final page = await _fetchOnlinePage(
@@ -258,9 +271,10 @@ class SearchViewModel extends SafeChangeNotifier {
         query: searchKey.query,
         sourceIds: searchKey.sourceIds,
         limit: AppConstants.defaultSearchLimit,
-        offset: _state.nextOffset,
+        offset: offset,
         deviceId: _theme.settings.deviceId,
         cancelToken: cancelToken,
+        appendOnly: true,
       );
       _lastExecutedSearch = searchKey;
       _state = _state.copyWith(
@@ -279,6 +293,7 @@ class SearchViewModel extends SafeChangeNotifier {
       _state = _state.copyWith(
         isLoadingMore: false,
         error: message,
+        errorTitle: 'More results failed',
         hasMore: true,
       );
       notifyListeners();
@@ -294,12 +309,20 @@ class SearchViewModel extends SafeChangeNotifier {
   Future<void> downloadTrack(Track track) async {
     final backend = _ref.read(backendRepositoryProvider);
     if (backend == null || !_startup.status.isConnected) {
-      _state = _state.copyWith(error: 'Connect Online Library to download.');
+      _state = _state.copyWith(
+        error: 'Connect Online Library to download.',
+        errorTitle: 'Download failed',
+        notice: null,
+      );
       notifyListeners();
       return;
     }
     if (track.resultId == null) {
-      _state = _state.copyWith(error: 'Refresh this track before download.');
+      _state = _state.copyWith(
+        error: 'Refresh this track before download.',
+        errorTitle: 'Download failed',
+        notice: null,
+      );
       notifyListeners();
       return;
     }
@@ -315,35 +338,60 @@ class SearchViewModel extends SafeChangeNotifier {
           streamedResults: _replaceTrack(_state.streamedResults, updated),
         );
       }
-      _state = _state.copyWith(error: null);
+      _state = _state.copyWith(error: null, notice: null);
       _ignoredLibraryRevision =
           _ref.read(libraryRevisionProvider.notifier).state + 1;
       notifyLibraryChanged(_ref);
       notifyListeners();
     } on ApiException catch (error) {
       await _refreshBackendIfTrackExpired(error);
-      _state = _state.copyWith(error: error.message);
+      _state = _state.copyWith(
+        error: error.message,
+        errorTitle: 'Download failed',
+        notice: null,
+      );
       notifyListeners();
     } catch (_) {
-      _state = _state.copyWith(error: 'Download failed. Try again.');
+      _state = _state.copyWith(
+        error: 'Download failed.',
+        errorTitle: 'Download failed',
+        notice: null,
+      );
       notifyListeners();
     }
   }
 
   Future<void> deleteTrack(Track track) async {
-    await _tracks.deleteLocalState(track);
-    final updated = await _tracks.byId(track.id);
-    _state = updated == null
-        ? _state.copyWith(
-            localMatches: _removeTrack(_state.localMatches, track),
-            streamedResults: _removeTrack(_state.streamedResults, track),
-          )
-        : _state.copyWith(
-            localMatches: _replaceTrack(_state.localMatches, updated),
-            streamedResults: _replaceTrack(_state.streamedResults, updated),
-          );
-    notifyLibraryChanged(_ref);
-    notifyListeners();
+    try {
+      await _tracks.deleteLocalState(track);
+      final updated = await _tracks.byId(track.id);
+      _state = updated == null
+          ? _state.copyWith(
+              localMatches: _removeTrack(_state.localMatches, track),
+              streamedResults: _removeTrack(_state.streamedResults, track),
+              error: null,
+              notice: 'Removed local download.',
+              noticeTitle: 'Deleted',
+            )
+          : _state.copyWith(
+              localMatches: _replaceTrack(_state.localMatches, updated),
+              streamedResults: _replaceTrack(_state.streamedResults, updated),
+              error: null,
+              notice: 'Removed local download.',
+              noticeTitle: 'Deleted',
+            );
+      _ignoredLibraryRevision =
+          _ref.read(libraryRevisionProvider.notifier).state + 1;
+      notifyLibraryChanged(_ref);
+      notifyListeners();
+    } catch (_) {
+      _state = _state.copyWith(
+        error: 'Could not delete local download.',
+        errorTitle: 'Delete failed',
+        notice: null,
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> _refreshBackendIfTrackExpired(ApiException error) async {
@@ -361,6 +409,7 @@ class SearchViewModel extends SafeChangeNotifier {
     required int offset,
     required String deviceId,
     required CancelToken? cancelToken,
+    bool appendOnly = false,
   }) async {
     var emitted = 0;
     var receivedTrack = false;
@@ -380,10 +429,15 @@ class SearchViewModel extends SafeChangeNotifier {
           emitted = event.emitted;
           final saved = await _tracks.mergeRemoteTrack(event.track);
           _state = _state.copyWith(
-            streamedResults: _searchService.mergeResults(
-              existing: _state.streamedResults,
-              incoming: saved,
-            ),
+            streamedResults: appendOnly
+                ? _searchService.appendResult(
+                    existing: _state.streamedResults,
+                    incoming: saved,
+                  )
+                : _searchService.mergeResults(
+                    existing: _state.streamedResults,
+                    incoming: saved,
+                  ),
           );
           notifyListeners();
         case SearchWarning():
@@ -411,14 +465,22 @@ class SearchViewModel extends SafeChangeNotifier {
             settings: _theme.settings,
             backend: _ref.read(backendRepositoryProvider),
           );
-      _state = _state.copyWith(error: null);
+      _state = _state.copyWith(error: null, notice: null);
       notifyListeners();
     } on ApiException catch (error) {
       await _refreshBackendIfTrackExpired(error);
-      _state = _state.copyWith(error: error.message);
+      _state = _state.copyWith(
+        error: error.message,
+        errorTitle: 'Share failed',
+        notice: null,
+      );
       notifyListeners();
     } catch (error) {
-      _state = _state.copyWith(error: error.toString());
+      _state = _state.copyWith(
+        error: error.toString(),
+        errorTitle: 'Share failed',
+        notice: null,
+      );
       notifyListeners();
     }
   }
@@ -427,7 +489,11 @@ class SearchViewModel extends SafeChangeNotifier {
     final backend = _ref.read(backendRepositoryProvider);
     final resultId = track.resultId;
     if (backend == null || resultId == null || !_startup.status.isConnected) {
-      _state = _state.copyWith(error: 'Connect Online Library first.');
+      _state = _state.copyWith(
+        error: 'Connect Online Library first.',
+        errorTitle: 'Delete failed',
+        notice: null,
+      );
       notifyListeners();
       return;
     }
@@ -439,22 +505,35 @@ class SearchViewModel extends SafeChangeNotifier {
               localMatches: _removeTrack(_state.localMatches, track),
               streamedResults: _removeTrack(_state.streamedResults, track),
               error: null,
+              notice: result.message,
+              noticeTitle: 'Deleted from server',
             )
           : _state.copyWith(
               localMatches: _replaceTrack(_state.localMatches, updated),
               streamedResults: _replaceTrack(_state.streamedResults, updated),
               error: null,
+              notice: result.message,
+              noticeTitle: 'Deleted from server',
             );
-      await _startup.refreshBackend(keepConnectedStatus: true);
-      _state = _state.copyWith(error: result.message);
+      _ignoredLibraryRevision =
+          _ref.read(libraryRevisionProvider.notifier).state + 1;
       notifyLibraryChanged(_ref);
       notifyListeners();
+      await _startup.refreshBackend(keepConnectedStatus: true);
     } on ApiException catch (error) {
       await _refreshBackendIfTrackExpired(error);
-      _state = _state.copyWith(error: error.message);
+      _state = _state.copyWith(
+        error: error.message,
+        errorTitle: 'Delete failed',
+        notice: null,
+      );
       notifyListeners();
     } catch (_) {
-      _state = _state.copyWith(error: 'Could not delete from server.');
+      _state = _state.copyWith(
+        error: 'Could not delete from server.',
+        errorTitle: 'Delete failed',
+        notice: null,
+      );
       notifyListeners();
     }
   }

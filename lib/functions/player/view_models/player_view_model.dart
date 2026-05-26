@@ -39,7 +39,7 @@ class PlayerViewModel extends SafeChangeNotifier {
       queue: queue,
       activePlaylistId: activePlaylistId,
       recentHistoryLimit: settings.recentHistoryLimit,
-      directUrlEnabled: settings.directUrlEnabled,
+      directUrlSourceIds: settings.directUrlSourceIds,
     );
   }
 
@@ -61,6 +61,8 @@ class PlayerViewModel extends SafeChangeNotifier {
     index,
     backend: _ref.read(backendRepositoryProvider),
   );
+  Future<void> reorderQueue(int oldIndex, int newIndex) =>
+      _playback.reorderQueue(oldIndex, newIndex);
   Future<void> cycleMode() => _playback.cycleMode();
   void replaceCurrentTrack(Track track) => _playback.replaceCurrentTrack(track);
 

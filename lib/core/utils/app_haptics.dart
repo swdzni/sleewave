@@ -7,7 +7,5 @@ class AppHaptics {
 
   static Future<void> light() => HapticFeedback.lightImpact();
 
-  static Future<void> medium() => HapticFeedback.mediumImpact();
-
-  static Future<void> warning() => HapticFeedback.vibrate();
+  static Future<void> warning() => light();
 }

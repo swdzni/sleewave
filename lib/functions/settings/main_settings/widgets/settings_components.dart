@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
-import '../../../../core/utils/app_haptics.dart';
 
 class SettingsPageHeader extends StatelessWidget {
   const SettingsPageHeader({
@@ -100,16 +99,7 @@ class SettingsRow extends StatelessWidget {
     final tokens = context.themeTokens;
     final color = danger ? palette.danger : palette.primaryText;
     return InkWell(
-      onTap: onTap == null
-          ? null
-          : () {
-              if (danger) {
-                AppHaptics.warning();
-              } else {
-                AppHaptics.selection();
-              }
-              onTap!();
-            },
+      onTap: onTap,
       borderRadius: BorderRadius.circular(tokens.rowRadius),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),

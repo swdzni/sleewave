@@ -364,7 +364,7 @@ class _HomeCollectionScreenState extends ConsumerState<HomeCollectionScreen> {
       await _refreshServerIfTrackExpired(error);
       _showError('Download failed', error.message);
     } catch (_) {
-      _showError('Download failed', 'Try again.');
+      _showError('Download failed', 'Download failed.');
     }
   }
 

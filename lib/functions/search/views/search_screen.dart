@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/app_search_field.dart';
@@ -20,6 +21,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _scrollController = ScrollController();
+  String? _lastErrorKey;
 
   @override
   void initState() {
@@ -48,6 +50,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(searchViewModelProvider.select((vm) => vm.state.error), (
+      previous,
+      next,
+    ) {
+      if (next == null) {
+        _lastErrorKey = null;
+        return;
+      }
+      if (_lastErrorKey == next) {
+        return;
+      }
+      _lastErrorKey = next;
+      AppHaptics.light();
+    });
     final vm = ref.watch(searchViewModelProvider);
     final state = vm.state;
     final currentTrackId = ref
@@ -107,11 +123,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 child: AppAlert(
-                  title: 'Search failed',
+                  title: state.errorTitle,
                   message: state.error!,
                   variant: AppAlertVariant.danger,
-                  actionLabel: 'Try again',
-                  onAction: () => vm.searchNow(force: true),
+                  actionLabel: state.errorTitle == 'Search failed'
+                      ? 'Try again'
+                      : null,
+                  onAction: state.errorTitle == 'Search failed'
+                      ? () => vm.searchNow(force: true)
+                      : null,
+                ),
+              ),
+            if (state.notice != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: AppAlert(
+                  title: state.noticeTitle,
+                  message: state.notice!,
+                  variant: AppAlertVariant.success,
                 ),
               ),
             if (state.query.trim().isEmpty)

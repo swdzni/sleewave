@@ -136,6 +136,113 @@ void main() {
     expect(saved.directUrlEnabled, isTrue);
     expect(vm.state.settings.directUrlEnabled, isTrue);
   });
+
+  test('saves direct URL preference for streamable sources', () async {
+    final vm = SettingsViewModel(
+      theme,
+      startup,
+      backendFactory: (_) => _FakeBackendRepository(const [
+        SourceInfo(
+          id: 'streamable',
+          name: 'Streamable',
+          available: true,
+          supportsSearch: true,
+          supportsStream: true,
+          supportsDownload: true,
+        ),
+        SourceInfo(
+          id: 'metadata',
+          name: 'Metadata',
+          available: true,
+          supportsSearch: true,
+          supportsStream: false,
+          supportsDownload: false,
+        ),
+      ]),
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
+    );
+
+    await vm.saveUrl('http://127.0.0.1:8000');
+
+    await vm.setDirectUrlForSource('streamable', true);
+    await vm.setDirectUrlForSource('metadata', true);
+    final saved = await settingsRepository.load();
+
+    expect(saved.directUrlSourceIds, ['streamable']);
+    expect(vm.state.settings.directUrlSourceIds, ['streamable']);
+  });
+
+  test('all direct URLs can still be adjusted per source', () async {
+    final vm = SettingsViewModel(
+      theme,
+      startup,
+      backendFactory: (_) => _FakeBackendRepository(const [
+        SourceInfo(
+          id: 'first',
+          name: 'First',
+          available: true,
+          supportsSearch: true,
+          supportsStream: true,
+          supportsDownload: true,
+        ),
+        SourceInfo(
+          id: 'second',
+          name: 'Second',
+          available: true,
+          supportsSearch: true,
+          supportsStream: true,
+          supportsDownload: true,
+        ),
+      ]),
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
+    );
+
+    await vm.saveUrl('http://127.0.0.1:8000');
+    await vm.setDirectUrlForAllSources(true);
+    await vm.setDirectUrlForSource('second', false);
+    final saved = await settingsRepository.load();
+
+    expect(saved.directUrlEnabled, isFalse);
+    expect(saved.directUrlSourceIds, ['first']);
+    expect(vm.state.settings.directUrlSourceIds, ['first']);
+  });
+
+  test('old global direct URL setting seeds all streamable sources', () async {
+    await theme.saveSettings(theme.settings.copyWith(directUrlEnabled: true));
+    final vm = SettingsViewModel(
+      theme,
+      startup,
+      backendFactory: (_) => _FakeBackendRepository(const [
+        SourceInfo(
+          id: 'first',
+          name: 'First',
+          available: true,
+          supportsSearch: true,
+          supportsStream: true,
+          supportsDownload: true,
+        ),
+        SourceInfo(
+          id: 'metadata',
+          name: 'Metadata',
+          available: true,
+          supportsSearch: true,
+          supportsStream: false,
+          supportsDownload: false,
+        ),
+      ]),
+      refreshBackend:
+          ({bool keepConnectedStatus = false, bool force = false}) async {},
+    );
+
+    await vm.saveUrl('http://127.0.0.1:8000');
+    final saved = await settingsRepository.load();
+
+    expect(saved.directUrlEnabled, isFalse);
+    expect(saved.directUrlSourceIds, ['first']);
+    expect(vm.state.settings.directUrlSourceIds, ['first']);
+  });
 }
 
 class _FakeBackendRepository extends BackendRepository {

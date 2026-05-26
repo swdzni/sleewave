@@ -61,6 +61,7 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
               PlaylistCard(
                 playlist: playlist,
                 onTap: () => context.push('/playlists/${playlist.id}'),
+                onPlay: () => vm.play(playlist),
                 onRename: playlist.isFavorite
                     ? null
                     : () => _showRenameSheet(context, vm, playlist),

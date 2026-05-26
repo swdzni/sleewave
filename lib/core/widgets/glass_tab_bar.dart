@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
@@ -119,10 +118,7 @@ class _TabButton extends StatelessWidget {
       label: item.semanticLabel,
       child: InkWell(
         borderRadius: BorderRadius.circular(tokens.controlRadius),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
+        onTap: onTap,
         child: AnimatedScale(
           duration: AppDurations.state,
           curve: AppCurves.standard,

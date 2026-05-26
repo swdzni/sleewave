@@ -167,7 +167,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       await _refreshBackendIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
-      _showMessage('Download failed. Try again.');
+      _showMessage('Download failed.');
     }
   }
 

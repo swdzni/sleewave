@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import '../../../core/models/playlist.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'playlist_cover.dart';
 
 class PlaylistCard extends StatelessWidget {
@@ -11,6 +10,7 @@ class PlaylistCard extends StatelessWidget {
     super.key,
     required this.playlist,
     required this.onTap,
+    this.onPlay,
     this.onRename,
     this.onDelete,
     this.active = false,
@@ -18,6 +18,7 @@ class PlaylistCard extends StatelessWidget {
 
   final Playlist playlist;
   final VoidCallback onTap;
+  final VoidCallback? onPlay;
   final VoidCallback? onRename;
   final VoidCallback? onDelete;
   final bool active;
@@ -33,10 +34,7 @@ class PlaylistCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(tokens.rowRadius),
         child: InkWell(
           borderRadius: BorderRadius.circular(tokens.rowRadius),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onTap();
-          },
+          onTap: onTap,
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -85,6 +83,18 @@ class PlaylistCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Play playlist',
+                  onPressed: playlist.trackCount == 0 || onPlay == null
+                      ? null
+                      : () {
+                          AppHaptics.light();
+                          onPlay!();
+                        },
+                  icon: Icon(
+                    active ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   ),
                 ),
                 if (onRename != null || onDelete != null)

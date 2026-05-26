@@ -5,6 +5,7 @@ import '../../../core/models/playlist.dart';
 import '../../../core/providers.dart';
 import '../../../core/repositories/playlist_repository.dart';
 import '../../../core/utils/safe_change_notifier.dart';
+import '../../player/view_models/player_view_model.dart';
 import '../models/playlists_state.dart';
 
 class PlaylistsViewModel extends SafeChangeNotifier {
@@ -51,6 +52,20 @@ class PlaylistsViewModel extends SafeChangeNotifier {
     await _playlists.delete(playlist);
     notifyLibraryChanged(_ref);
     await load();
+  }
+
+  Future<void> play(Playlist playlist) async {
+    if (playlist.trackCount == 0) {
+      return;
+    }
+    final tracks = await _playlists.tracksForPlaylist(playlist.id);
+    if (tracks.isEmpty) {
+      await load();
+      return;
+    }
+    await _ref
+        .read(playerViewModelProvider)
+        .play(tracks.first, queue: tracks, activePlaylistId: playlist.id);
   }
 }
 

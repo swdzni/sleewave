@@ -42,6 +42,7 @@ class AppSettings {
     int recentHistoryLimit = AppConstants.defaultRecentHistoryLimit,
     this.shareWithText = false,
     this.directUrlEnabled = false,
+    this.directUrlSourceIds = const [],
   }) : recentHistoryLimit = recentHistoryLimit.clamp(
          AppConstants.minRecentHistoryLimit,
          AppConstants.maxRecentHistoryLimit,
@@ -60,6 +61,7 @@ class AppSettings {
   final int recentHistoryLimit;
   final bool shareWithText;
   final bool directUrlEnabled;
+  final List<String> directUrlSourceIds;
 
   static String generateDeviceId({Random? random}) {
     final source = random ?? Random.secure();
@@ -123,6 +125,7 @@ class AppSettings {
     int? recentHistoryLimit,
     bool? shareWithText,
     bool? directUrlEnabled,
+    List<String>? directUrlSourceIds,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -136,6 +139,7 @@ class AppSettings {
       recentHistoryLimit: recentHistoryLimit ?? this.recentHistoryLimit,
       shareWithText: shareWithText ?? this.shareWithText,
       directUrlEnabled: directUrlEnabled ?? this.directUrlEnabled,
+      directUrlSourceIds: directUrlSourceIds ?? this.directUrlSourceIds,
     );
   }
 }

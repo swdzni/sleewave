@@ -28,10 +28,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final vm = ref.watch(playerViewModelProvider);
     final snapshot = vm.state.snapshot;
     final track = snapshot.currentTrack;
-    final displayedPosition = _dragPosition ?? snapshot.position;
+    final timelineReady =
+        !snapshot.isBuffering && snapshot.duration > Duration.zero;
+    final displayedPosition = timelineReady
+        ? (_dragPosition ?? snapshot.position)
+        : Duration.zero;
     final tokens = context.themeTokens;
     return SwipeDismissLayer(
-      onDismiss: context.pop,
+      onDismiss: () {
+        AppHaptics.light();
+        context.pop();
+      },
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: DecoratedBox(
@@ -65,7 +72,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           children: [
                             IconButton(
                               tooltip: 'Close',
-                              onPressed: context.pop,
+                              onPressed: () {
+                                AppHaptics.light();
+                                context.pop();
+                              },
                               icon: const Icon(
                                 Icons.keyboard_arrow_down_rounded,
                               ),
@@ -107,7 +117,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           child: Center(
                             child: GestureDetector(
                               onLongPress: () {
-                                AppHaptics.medium();
+                                AppHaptics.light();
                                 showPlayerTrackActions(
                                   context: context,
                                   ref: ref,
@@ -154,28 +164,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           max: snapshot.duration.inMilliseconds == 0
                               ? 1
                               : snapshot.duration.inMilliseconds.toDouble(),
-                          onChangeStart: (value) {
-                            setState(
-                              () => _dragPosition = Duration(
-                                milliseconds: value.round(),
-                              ),
-                            );
-                          },
-                          onChanged: (value) {
-                            setState(
-                              () => _dragPosition = Duration(
-                                milliseconds: value.round(),
-                              ),
-                            );
-                          },
-                          onChangeEnd: (value) async {
-                            final next = Duration(milliseconds: value.round());
-                            setState(() => _dragPosition = next);
-                            await vm.seek(next);
-                            if (mounted) {
-                              setState(() => _dragPosition = null);
-                            }
-                          },
+                          onChangeStart: timelineReady
+                              ? (value) {
+                                  setState(
+                                    () => _dragPosition = Duration(
+                                      milliseconds: value.round(),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          onChanged: timelineReady
+                              ? (value) {
+                                  setState(
+                                    () => _dragPosition = Duration(
+                                      milliseconds: value.round(),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          onChangeEnd: timelineReady
+                              ? (value) async {
+                                  final next = Duration(
+                                    milliseconds: value.round(),
+                                  );
+                                  setState(() => _dragPosition = next);
+                                  await vm.seek(next);
+                                  if (mounted) {
+                                    setState(() => _dragPosition = null);
+                                  }
+                                }
+                              : null,
                         ),
                         Row(
                           children: [

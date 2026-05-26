@@ -58,7 +58,7 @@ class _OnlineLibrarySettingsScreenState
             checking: state.checking,
             clearingCache: state.clearingCache,
             clearingSongs: state.clearingSongs,
-            directUrlEnabled: state.settings.directUrlEnabled,
+            directUrlSourceIds: state.settings.directUrlSourceIds,
             httpWarning: state.httpWarning,
             onCheck: () => vm.saveUrl(_urlController.text),
             onClear: () async {
@@ -85,7 +85,8 @@ class _OnlineLibrarySettingsScreenState
                 await vm.clearServerSongs();
               }
             },
-            onDirectUrlChanged: vm.setDirectUrlEnabled,
+            onDirectUrlAllSourcesChanged: vm.setDirectUrlForAllSources,
+            onDirectUrlSourceChanged: vm.setDirectUrlForSource,
             onOpenGuide: () async {
               await _opener.open(AppConfig.backendSetupRepoUrl);
               if (context.mounted) {

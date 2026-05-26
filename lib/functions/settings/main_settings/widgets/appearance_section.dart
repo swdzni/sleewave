@@ -4,7 +4,6 @@ import '../../../../core/models/app_settings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_tokens.dart';
-import '../../../../core/utils/app_haptics.dart';
 import 'settings_components.dart';
 
 class AppearanceSection extends StatelessWidget {
@@ -55,10 +54,7 @@ class _ThemeCard extends StatelessWidget {
     return InkWell(
       key: ValueKey('theme-card-${option.mode.name}'),
       borderRadius: BorderRadius.circular(context.themeTokens.rowRadius),
-      onTap: () {
-        AppHaptics.light();
-        onTap();
-      },
+      onTap: onTap,
       child: AnimatedContainer(
         duration: AppDurations.state,
         curve: AppCurves.standard,

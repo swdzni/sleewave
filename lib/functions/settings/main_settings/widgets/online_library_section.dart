@@ -15,13 +15,14 @@ class OnlineLibrarySection extends StatelessWidget {
     required this.checking,
     required this.clearingCache,
     required this.clearingSongs,
-    required this.directUrlEnabled,
+    required this.directUrlSourceIds,
     required this.httpWarning,
     required this.onCheck,
     required this.onClear,
     required this.onClearCache,
     required this.onClearSongs,
-    required this.onDirectUrlChanged,
+    required this.onDirectUrlAllSourcesChanged,
+    required this.onDirectUrlSourceChanged,
     required this.onOpenGuide,
   });
 
@@ -31,13 +32,14 @@ class OnlineLibrarySection extends StatelessWidget {
   final bool checking;
   final bool clearingCache;
   final bool clearingSongs;
-  final bool directUrlEnabled;
+  final List<String> directUrlSourceIds;
   final bool httpWarning;
   final VoidCallback onCheck;
   final VoidCallback onClear;
   final VoidCallback onClearCache;
   final VoidCallback onClearSongs;
-  final ValueChanged<bool> onDirectUrlChanged;
+  final ValueChanged<bool> onDirectUrlAllSourcesChanged;
+  final void Function(String sourceId, bool enabled) onDirectUrlSourceChanged;
   final VoidCallback onOpenGuide;
 
   @override
@@ -78,14 +80,6 @@ class OnlineLibrarySection extends StatelessWidget {
                   color: context.palette.warning,
                 ),
               ),
-            SettingsRow(
-              icon: Icons.link_rounded,
-              title: 'Direct URLs',
-              trailing: Switch(
-                value: directUrlEnabled,
-                onChanged: onDirectUrlChanged,
-              ),
-            ),
           ],
         ),
         SettingsSection(
@@ -143,21 +137,16 @@ class OnlineLibrarySection extends StatelessWidget {
           SettingsSection(
             title: 'Sources',
             children: [
+              _AllSourcesDirectUrlRow(
+                sources: sources,
+                directUrlSourceIds: directUrlSourceIds,
+                onChanged: onDirectUrlAllSourcesChanged,
+              ),
               for (final source in sources)
-                SettingsRow(
-                  icon: source.canSearch
-                      ? Icons.check_circle_rounded
-                      : Icons.block_rounded,
-                  title: source.name,
-                  subtitle: source.canSearch ? 'Available' : 'Unavailable',
-                  trailing: Icon(
-                    source.canSearch
-                        ? Icons.search_rounded
-                        : Icons.not_interested_rounded,
-                    color: source.canSearch
-                        ? context.palette.success
-                        : context.palette.secondaryText,
-                  ),
+                _SourceSettingsRow(
+                  source: source,
+                  directUrlSourceIds: directUrlSourceIds,
+                  onDirectUrlSourceChanged: onDirectUrlSourceChanged,
                 ),
             ],
           ),
@@ -173,5 +162,90 @@ class OnlineLibrarySection extends StatelessWidget {
       ServerStatusKind.unknown ||
       ServerStatusKind.checking => context.palette.warning,
     };
+  }
+}
+
+class _SourceSettingsRow extends StatelessWidget {
+  const _SourceSettingsRow({
+    required this.source,
+    required this.directUrlSourceIds,
+    required this.onDirectUrlSourceChanged,
+  });
+
+  final SourceInfo source;
+  final List<String> directUrlSourceIds;
+  final void Function(String sourceId, bool enabled) onDirectUrlSourceChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final canUseDirectUrl = source.available && source.supportsStream;
+    final directUrlActive = directUrlSourceIds.contains(source.id);
+    return SettingsRow(
+      icon: source.available ? Icons.check_circle_rounded : Icons.block_rounded,
+      title: source.name,
+      subtitle: _subtitle(directUrlActive),
+      trailing: canUseDirectUrl
+          ? Switch(
+              value: directUrlActive,
+              onChanged: (enabled) =>
+                  onDirectUrlSourceChanged(source.id, enabled),
+            )
+          : Icon(
+              source.available
+                  ? Icons.not_interested_rounded
+                  : Icons.block_rounded,
+              color: context.palette.secondaryText,
+            ),
+    );
+  }
+
+  String _subtitle(bool directUrlActive) {
+    final parts = <String>[
+      source.available ? 'Available' : 'Unavailable',
+      if (!source.supportsSearch) 'No search',
+      if (!source.supportsStream)
+        'No streaming'
+      else if (directUrlActive)
+        'Direct links on'
+      else
+        'Normal stream',
+    ];
+    return parts.join(' · ');
+  }
+}
+
+class _AllSourcesDirectUrlRow extends StatelessWidget {
+  const _AllSourcesDirectUrlRow({
+    required this.sources,
+    required this.directUrlSourceIds,
+    required this.onChanged,
+  });
+
+  final List<SourceInfo> sources;
+  final List<String> directUrlSourceIds;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final streamableIds = [
+      for (final source in sources)
+        if (source.available && source.supportsStream) source.id,
+    ];
+    final selectedCount = streamableIds
+        .where(directUrlSourceIds.contains)
+        .length;
+    final allSelected =
+        streamableIds.isNotEmpty && selectedCount == streamableIds.length;
+    return SettingsRow(
+      icon: Icons.link_rounded,
+      title: 'All direct URLs',
+      subtitle: streamableIds.isEmpty
+          ? 'No streamable sources.'
+          : '$selectedCount of ${streamableIds.length} sources enabled.',
+      trailing: Switch(
+        value: allSelected,
+        onChanged: streamableIds.isEmpty ? null : onChanged,
+      ),
+    );
   }
 }

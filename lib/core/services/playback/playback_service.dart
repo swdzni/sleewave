@@ -12,11 +12,16 @@ import '../../network/api_exception.dart';
 import '../../repositories/backend_repository.dart';
 import '../../repositories/track_repository.dart';
 import '../../utils/safe_change_notifier.dart';
-import 'backend_stream_audio_source.dart';
+import 'audio_player_engine.dart';
 import 'queue_service.dart';
 
 class PlaybackService extends SafeChangeNotifier {
-  PlaybackService(this._tracks, this._queue, {this.onTrackRecorded}) {
+  PlaybackService(
+    this._tracks,
+    this._queue, {
+    this.onTrackRecorded,
+    AudioPlayerEngine? engine,
+  }) : _player = engine ?? JustAudioPlayerEngine() {
     if (Platform.isIOS) {
       _remoteControlsChannel.setMethodCallHandler(_handleRemoteCommand);
       _scheduleRemoteControlsRefresh();
@@ -26,6 +31,9 @@ class PlaybackService extends SafeChangeNotifier {
     );
     _subscriptions.add(
       _player.positionStream.listen((position) {
+        if (_player.processingState != ProcessingState.ready) {
+          return;
+        }
         _snapshot = _snapshot.copyWith(position: position);
         notifyListeners();
       }),
@@ -38,22 +46,32 @@ class PlaybackService extends SafeChangeNotifier {
         notifyListeners();
       }),
     );
+    _subscriptions.add(
+      _player.currentIndexStream.listen(_handleCurrentIndexChanged),
+    );
+    _subscriptions.add(_player.errorStream.listen(_handlePlayerError));
   }
 
   final TrackRepository _tracks;
   final QueueService _queue;
   final FutureOr<void> Function(Track track)? onTrackRecorded;
-  final AudioPlayer _player = AudioPlayer();
-  final List<StreamSubscription<Object?>> _subscriptions = [];
+  final AudioPlayerEngine _player;
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
   PlaybackSnapshot _snapshot = const PlaybackSnapshot();
   BackendRepository? _lastBackend;
   int _recentHistoryLimit = AppConstants.defaultRecentHistoryLimit;
-  bool _directUrlEnabled = false;
+  Set<String> _directUrlSourceIds = const {};
   bool _handlingCompletion = false;
   Timer? _rewindTimer;
   Timer? _remoteControlsTimer;
   bool _fastForwarding = false;
+  bool _handlingPlayerError = false;
   int _loadGeneration = 0;
+  bool _playlistPrepared = false;
+  List<int> _sourceQueueIndices = const [];
+  final Set<String> _failedTrackIds = {};
+  final Set<String> _directFallbackTrackIds = {};
+  String? _lastRecordedTrackId;
 
   static const _restartThreshold = Duration(seconds: 3);
   static const _remoteControlsChannel = MethodChannel(
@@ -82,11 +100,16 @@ class PlaybackService extends SafeChangeNotifier {
     List<Track>? queue,
     String? activePlaylistId,
     required int recentHistoryLimit,
-    required bool directUrlEnabled,
+    required List<String> directUrlSourceIds,
   }) async {
     _lastBackend = backend;
     _recentHistoryLimit = recentHistoryLimit;
-    _directUrlEnabled = directUrlEnabled;
+    _directUrlSourceIds = directUrlSourceIds.toSet();
+    _failedTrackIds.clear();
+    _directFallbackTrackIds.clear();
+    _lastRecordedTrackId = null;
+    _playlistPrepared = false;
+    _sourceQueueIndices = const [];
     if (queue != null && queue.isNotEmpty) {
       final startIndex = queue.indexWhere((item) => item.id == track.id);
       _queue.setQueue(
@@ -96,8 +119,7 @@ class PlaybackService extends SafeChangeNotifier {
     } else {
       _queue.setSingle(track);
     }
-    await _loadAndPlay(
-      track,
+    await _prepareAndStartQueue(
       backend: backend,
       activePlaylistId: activePlaylistId,
     );
@@ -105,9 +127,10 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> jumpToQueueIndex(int index, {BackendRepository? backend}) async {
     _lastBackend = backend ?? _lastBackend;
-    if (index == _queue.index) {
+    if (index < 0 || index >= _queue.queue.length) {
       return;
     }
+    _failedTrackIds.remove(_queue.queue[index].id);
     final resolvedIndex = _nearestPlayableIndex(
       index,
       backend: backend ?? _lastBackend,
@@ -117,6 +140,20 @@ class PlaybackService extends SafeChangeNotifier {
       return;
     }
     await _jumpToResolvedIndex(resolvedIndex, backend: backend ?? _lastBackend);
+  }
+
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    final resolvedNewIndex = _queue.reorder(oldIndex, newIndex);
+    if (resolvedNewIndex == null) {
+      return;
+    }
+    _snapshot = _snapshot.copyWith(queue: _queue.queue);
+    notifyListeners();
+    await _prepareAndStartQueue(
+      backend: _lastBackend,
+      initialPosition: _snapshot.position,
+      playAfterLoad: _player.playing,
+    );
   }
 
   Future<void> togglePlayPause() async {
@@ -129,8 +166,14 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> stop() async {
     _loadGeneration++;
+    _playlistPrepared = false;
+    _sourceQueueIndices = const [];
     await _player.stop();
-    _snapshot = _snapshot.copyWith(isPlaying: false, isBuffering: false);
+    _snapshot = _snapshot.copyWith(
+      isPlaying: false,
+      isBuffering: false,
+      position: Duration.zero,
+    );
     notifyListeners();
   }
 
@@ -176,13 +219,20 @@ class PlaybackService extends SafeChangeNotifier {
 
   Future<void> cycleMode() async {
     final mode = _snapshot.mode.next;
-    await _player.setShuffleModeEnabled(false);
-    await _player.setLoopMode(LoopMode.off);
     if (mode == PlaybackMode.shuffle) {
       _queue.shuffleKeepingCurrent();
+      _snapshot = _snapshot.copyWith(mode: mode, queue: _queue.queue);
+      notifyListeners();
+      await _prepareAndStartQueue(
+        backend: _lastBackend,
+        initialPosition: _snapshot.position,
+        playAfterLoad: _player.playing,
+      );
+      return;
     }
     _snapshot = _snapshot.copyWith(mode: mode, queue: _queue.queue);
     notifyListeners();
+    await _configureNativePlaybackMode(mode);
   }
 
   void replaceCurrentTrack(Track track) {
@@ -225,18 +275,24 @@ class PlaybackService extends SafeChangeNotifier {
     _rewindTimer = null;
   }
 
-  Future<void> _loadAndPlay(
-    Track track, {
+  Future<void> _prepareAndStartQueue({
     BackendRepository? backend,
     Object? activePlaylistId = _activePlaylistSentinel,
     bool allowDirectUrl = true,
+    Duration initialPosition = Duration.zero,
+    bool playAfterLoad = true,
   }) async {
+    final track = _queue.current;
+    if (track == null) {
+      _setNonStoppingPlaybackError('No playable tracks in queue.');
+      return;
+    }
     final generation = ++_loadGeneration;
     _snapshot = _snapshot.copyWith(
       currentTrack: track,
       isPlaying: false,
       isBuffering: true,
-      position: Duration.zero,
+      position: initialPosition,
       duration: _durationFor(track),
       queue: _queue.queue,
       activePlaylistId: activePlaylistId == _activePlaylistSentinel
@@ -249,23 +305,14 @@ class PlaybackService extends SafeChangeNotifier {
     try {
       await endFastForward();
       endRewind();
-      await _player.pause();
-      if (_isStaleLoad(generation)) {
-        return;
-      }
-      await _player.stop();
-      if (_isStaleLoad(generation)) {
-        return;
-      }
-      final source = await _audioSourceFor(
-        track,
+      final prepared = await _prepareQueueSources(
         backend: backend,
         allowDirectUrl: allowDirectUrl,
       );
       if (_isStaleLoad(generation)) {
         return;
       }
-      if (source == null) {
+      if (prepared.sources.isEmpty) {
         _setPlaybackError(
           track,
           backend == null
@@ -274,21 +321,40 @@ class PlaybackService extends SafeChangeNotifier {
         );
         return;
       }
+      final startSourceIndex = prepared.queueIndices.indexOf(_queue.index);
+      if (startSourceIndex == -1) {
+        _setNonStoppingPlaybackError(
+          _sourceUnavailableMessage(track, backend: backend),
+        );
+        return;
+      }
+      _sourceQueueIndices = prepared.queueIndices;
+      _playlistPrepared = true;
       _snapshot = _snapshot.copyWith(queue: _queue.queue);
       notifyListeners();
-      await _player.setAudioSource(source);
+      await _player.setAudioSources(
+        prepared.sources,
+        initialIndex: startSourceIndex,
+        initialPosition: initialPosition,
+      );
       if (_isStaleLoad(generation)) {
         return;
       }
-      await _player.play();
+      await _configureNativePlaybackMode(_snapshot.mode);
       if (_isStaleLoad(generation)) {
         return;
       }
-      await _tracks.recordPlayed(track);
-      await _trimRecentlyPlayed();
-      await _notifyTrackRecorded(track);
+      if (playAfterLoad) {
+        await _player.play();
+      }
+      if (_isStaleLoad(generation)) {
+        return;
+      }
+      if (playAfterLoad) {
+        await _recordStartedTrack(track);
+      }
     } on ApiException catch (error) {
-      _setPlaybackError(track, error.message, generation: generation);
+      await _skipFailedTrack(track, error.message, generation: generation);
     } on PlayerInterruptedException {
       if (!_isStaleLoad(generation)) {
         _setPlaybackError(
@@ -297,25 +363,26 @@ class PlaybackService extends SafeChangeNotifier {
           generation: generation,
         );
       }
-    } on PlayerException {
+    } on PlayerException catch (error) {
       if (allowDirectUrl && _canFallbackFromDirectUrl(track, backend)) {
-        await _loadAndPlay(
-          track,
+        _directFallbackTrackIds.add(track.id);
+        await _prepareAndStartQueue(
           backend: backend,
           activePlaylistId: activePlaylistId,
-          allowDirectUrl: false,
+          initialPosition: initialPosition,
+          playAfterLoad: playAfterLoad,
         );
         return;
       }
-      _setPlaybackError(
+      await _skipFailedTrack(
         track,
-        'Could not start audio playback. Try again.',
+        _messageForPlayerException(error, track),
         generation: generation,
       );
-    } catch (_) {
-      _setPlaybackError(
+    } catch (error) {
+      await _skipFailedTrack(
         track,
-        'Could not play this track. Try again.',
+        _messageForUnexpectedError(error, track),
         generation: generation,
       );
     }
@@ -327,20 +394,13 @@ class PlaybackService extends SafeChangeNotifier {
     }
     _handlingCompletion = true;
     try {
-      switch (_snapshot.mode) {
-        case PlaybackMode.repeatOne:
-          await _player.seek(Duration.zero);
-          await _player.play();
-        case PlaybackMode.shuffle:
-          await _advanceAfterCompletion(shuffle: true);
-        case PlaybackMode.repeatAll:
-          await _advanceAfterCompletion(wrap: true);
-        case PlaybackMode.normal:
-          if (!await _advanceAfterCompletion()) {
-            _snapshot = _snapshot.copyWith(isPlaying: false);
-            notifyListeners();
-          }
+      if (_snapshot.mode == PlaybackMode.repeatOne) {
+        await _player.seek(Duration.zero);
+        await _player.play();
+        return;
       }
+      _snapshot = _snapshot.copyWith(isPlaying: false, isBuffering: false);
+      notifyListeners();
     } on PlayerException {
       final track = _snapshot.currentTrack;
       if (track != null) {
@@ -358,6 +418,8 @@ class PlaybackService extends SafeChangeNotifier {
       return;
     }
     _loadGeneration++;
+    _playlistPrepared = false;
+    _sourceQueueIndices = const [];
     unawaited(_player.stop());
     _snapshot = _snapshot.copyWith(
       currentTrack: track,
@@ -380,6 +442,78 @@ class PlaybackService extends SafeChangeNotifier {
   }
 
   bool _isStaleLoad(int generation) => generation != _loadGeneration;
+
+  Future<void> _handleCurrentIndexChanged(int? sourceIndex) async {
+    if (sourceIndex == null ||
+        sourceIndex < 0 ||
+        sourceIndex >= _sourceQueueIndices.length) {
+      return;
+    }
+    final queueIndex = _sourceQueueIndices[sourceIndex];
+    if (queueIndex < 0 || queueIndex >= _queue.queue.length) {
+      return;
+    }
+    if (_queue.index != queueIndex) {
+      _queue.jumpTo(queueIndex);
+    }
+    final track = _queue.current;
+    if (track == null || _snapshot.currentTrack?.id == track.id) {
+      return;
+    }
+    _snapshot = _snapshot.copyWith(
+      currentTrack: track,
+      isBuffering:
+          _player.processingState == ProcessingState.loading ||
+          _player.processingState == ProcessingState.buffering,
+      position: _player.position,
+      duration: _player.duration ?? _durationFor(track),
+      queue: _queue.queue,
+      error: null,
+    );
+    notifyListeners();
+    _scheduleRemoteControlsRefresh();
+    if (_player.playing) {
+      await _recordStartedTrack(track);
+    }
+  }
+
+  Future<void> _handlePlayerError(PlayerException error) async {
+    if (_handlingPlayerError || isDisposed) {
+      return;
+    }
+    _handlingPlayerError = true;
+    try {
+      final sourceIndex = error.index ?? _player.currentIndex;
+      final queueIndex =
+          sourceIndex == null ||
+              sourceIndex < 0 ||
+              sourceIndex >= _sourceQueueIndices.length
+          ? _queue.index
+          : _sourceQueueIndices[sourceIndex];
+      if (queueIndex >= 0 && queueIndex < _queue.queue.length) {
+        _queue.jumpTo(queueIndex);
+      }
+      final track = _queue.current ?? _snapshot.currentTrack;
+      if (track == null) {
+        _setNonStoppingPlaybackError(
+          'Audio source failed: ${_messageForPlayerException(error)}',
+        );
+        return;
+      }
+      if (_canFallbackFromDirectUrl(track, _lastBackend) &&
+          _directFallbackTrackIds.add(track.id)) {
+        await _prepareAndStartQueue(
+          backend: _lastBackend,
+          initialPosition: _snapshot.position,
+          playAfterLoad: true,
+        );
+        return;
+      }
+      await _skipFailedTrack(track, _messageForPlayerException(error, track));
+    } finally {
+      _handlingPlayerError = false;
+    }
+  }
 
   Future<void> _trimRecentlyPlayed() {
     return _tracks.trimRecentlyPlayed(limit: _recentHistoryLimit);
@@ -405,6 +539,42 @@ class PlaybackService extends SafeChangeNotifier {
     return Duration(seconds: seconds);
   }
 
+  Future<void> _recordStartedTrack(Track track) async {
+    if (_lastRecordedTrackId == track.id) {
+      return;
+    }
+    _lastRecordedTrackId = track.id;
+    await _tracks.recordPlayed(track);
+    await _trimRecentlyPlayed();
+    await _notifyTrackRecorded(track);
+  }
+
+  Future<_PreparedQueueSources> _prepareQueueSources({
+    required BackendRepository? backend,
+    required bool allowDirectUrl,
+  }) async {
+    final sources = <AudioSource>[];
+    final queueIndices = <int>[];
+    final queue = _queue.queue;
+    for (var index = 0; index < queue.length; index++) {
+      final track = queue[index];
+      if (_failedTrackIds.contains(track.id)) {
+        continue;
+      }
+      final source = await _audioSourceFor(
+        track,
+        backend: backend,
+        allowDirectUrl: allowDirectUrl,
+      );
+      if (source == null) {
+        continue;
+      }
+      sources.add(source);
+      queueIndices.add(index);
+    }
+    return _PreparedQueueSources(sources: sources, queueIndices: queueIndices);
+  }
+
   Future<AudioSource?> _audioSourceFor(
     Track track, {
     required BackendRepository? backend,
@@ -412,17 +582,16 @@ class PlaybackService extends SafeChangeNotifier {
   }) async {
     final mediaItem = _mediaItem(track);
     final localPath = track.localPath;
-    if (localPath != null &&
-        localPath.isNotEmpty &&
-        await File(localPath).exists()) {
+    if (localPath != null && localPath.isNotEmpty) {
       return AudioSource.uri(Uri.file(localPath), tag: mediaItem);
     }
     final resultId = track.resultId;
     if (resultId != null && backend != null) {
-      return BackendStreamAudioSource(
-        backend: backend,
-        resultId: resultId,
-        directUrl: _directUrlEnabled && allowDirectUrl,
+      return AudioSource.uri(
+        backend.streamUri(
+          resultId,
+          directUrl: _shouldUseDirectUrl(track, allowDirectUrl: allowDirectUrl),
+        ),
         tag: mediaItem,
       );
     }
@@ -430,7 +599,20 @@ class PlaybackService extends SafeChangeNotifier {
   }
 
   bool _canFallbackFromDirectUrl(Track track, BackendRepository? backend) {
-    return _directUrlEnabled && backend != null && track.resultId != null;
+    return _shouldUseDirectUrl(track, allowDirectUrl: true) &&
+        backend != null &&
+        track.resultId != null;
+  }
+
+  bool _shouldUseDirectUrl(Track track, {required bool allowDirectUrl}) {
+    if (!allowDirectUrl) {
+      return false;
+    }
+    if (_directFallbackTrackIds.contains(track.id)) {
+      return false;
+    }
+    final sourceId = track.sourceId;
+    return sourceId != null && _directUrlSourceIds.contains(sourceId);
   }
 
   Future<bool> isTrackPlayable(
@@ -471,6 +653,9 @@ class PlaybackService extends SafeChangeNotifier {
   }
 
   bool _isProbablyPlayable(Track track, {required BackendRepository? backend}) {
+    if (_failedTrackIds.contains(track.id)) {
+      return false;
+    }
     final localPath = track.localPath;
     if (localPath != null && localPath.isNotEmpty) {
       return true;
@@ -482,27 +667,139 @@ class PlaybackService extends SafeChangeNotifier {
     int index, {
     required BackendRepository? backend,
   }) async {
+    _lastBackend = backend ?? _lastBackend;
     _queue.jumpTo(index);
     final track = _queue.current;
-    if (track != null) {
-      await _loadAndPlay(track, backend: backend);
+    if (track == null) {
+      return;
     }
+    final sourceIndex = _sourceIndexForQueueIndex(index);
+    if (!_playlistPrepared ||
+        sourceIndex == null ||
+        _player.processingState == ProcessingState.loading) {
+      await _prepareAndStartQueue(backend: backend ?? _lastBackend);
+      return;
+    }
+    _snapshot = _snapshot.copyWith(
+      currentTrack: track,
+      isBuffering: true,
+      position: Duration.zero,
+      duration: _durationFor(track),
+      queue: _queue.queue,
+      error: null,
+    );
+    notifyListeners();
+    _scheduleRemoteControlsRefresh();
+    await _player.seek(Duration.zero, index: sourceIndex);
+    await _player.play();
+    await _recordStartedTrack(track);
   }
 
-  Future<bool> _advanceAfterCompletion({
-    bool wrap = false,
-    bool shuffle = false,
+  Future<void> _skipFailedTrack(
+    Track track,
+    String message, {
+    int? generation,
   }) async {
+    if (generation != null && _isStaleLoad(generation)) {
+      return;
+    }
+    _failedTrackIds.add(track.id);
+    final skippedMessage = 'Skipped "${track.title}": $message';
+    _snapshot = _snapshot.copyWith(
+      currentTrack: track,
+      isPlaying: false,
+      isBuffering: false,
+      queue: _queue.queue,
+      error: skippedMessage,
+    );
+    notifyListeners();
+    _scheduleRemoteControlsRefresh();
     final nextIndex = _nextPlayableIndex(
       backend: _lastBackend,
-      wrap: wrap,
-      shuffle: shuffle,
+      wrap: _snapshot.mode == PlaybackMode.repeatAll,
+      shuffle: _snapshot.mode == PlaybackMode.shuffle,
     );
     if (nextIndex == null) {
-      return false;
+      _setPlaybackError(track, 'No playable tracks left. $message');
+      return;
     }
-    await _jumpToResolvedIndex(nextIndex, backend: _lastBackend);
-    return true;
+    _queue.jumpTo(nextIndex);
+    await _prepareAndStartQueue(backend: _lastBackend);
+  }
+
+  int? _sourceIndexForQueueIndex(int queueIndex) {
+    final sourceIndex = _sourceQueueIndices.indexOf(queueIndex);
+    return sourceIndex == -1 ? null : sourceIndex;
+  }
+
+  Future<void> _configureNativePlaybackMode(PlaybackMode mode) async {
+    await _player.setShuffleModeEnabled(false);
+    final loopMode = switch (mode) {
+      PlaybackMode.repeatOne => LoopMode.one,
+      PlaybackMode.repeatAll => LoopMode.all,
+      PlaybackMode.normal || PlaybackMode.shuffle => LoopMode.off,
+    };
+    await _player.setLoopMode(loopMode);
+  }
+
+  String _sourceUnavailableMessage(
+    Track track, {
+    required BackendRepository? backend,
+  }) {
+    if (track.isLocalPlayable) {
+      return 'The local file is missing.';
+    }
+    if (track.resultId == null) {
+      return 'This track has no playable Online Library ID.';
+    }
+    if (backend == null) {
+      return 'Online Library is offline.';
+    }
+    return 'Track is unavailable.';
+  }
+
+  String _messageForPlayerException(PlayerException error, [Track? track]) {
+    final raw = error.message?.trim();
+    if (raw != null && raw.isNotEmpty) {
+      final lower = raw.toLowerCase();
+      if (lower.contains('404') ||
+          lower.contains('not found') ||
+          lower.contains('source error')) {
+        return 'Track source was not found.';
+      }
+      if (lower.contains('timeout')) {
+        return 'Track source timed out.';
+      }
+      if (lower.contains('format') ||
+          lower.contains('decoder') ||
+          lower.contains('unsupported')) {
+        return 'Audio format is not supported.';
+      }
+      if (lower.contains('network') ||
+          lower.contains('connection') ||
+          lower.contains('host')) {
+        return 'Network connection failed.';
+      }
+      return raw;
+    }
+    if (track?.isLocalPlayable == true) {
+      return 'The local file could not be opened.';
+    }
+    return 'Track source could not be loaded.';
+  }
+
+  String _messageForUnexpectedError(Object error, Track track) {
+    if (error is FileSystemException) {
+      return 'The local file is missing or unreadable.';
+    }
+    if (error is FormatException) {
+      return 'Track link is not valid.';
+    }
+    final message = '$error'.trim();
+    if (message.isEmpty || message == 'Exception') {
+      return _sourceUnavailableMessage(track, backend: _lastBackend);
+    }
+    return message;
   }
 
   MediaItem _mediaItem(Track track) {
@@ -594,3 +891,13 @@ class PlaybackService extends SafeChangeNotifier {
 }
 
 const _activePlaylistSentinel = Object();
+
+class _PreparedQueueSources {
+  const _PreparedQueueSources({
+    required this.sources,
+    required this.queueIndices,
+  });
+
+  final List<AudioSource> sources;
+  final List<int> queueIndices;
+}

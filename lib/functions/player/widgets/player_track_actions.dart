@@ -89,7 +89,7 @@ Future<void> _downloadTrack(
     if (!context.mounted) {
       return;
     }
-    _showMessage(context, 'Download failed. Try again.');
+    _showMessage(context, 'Download failed.');
   }
 }
 

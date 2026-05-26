@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/app_startup_controller.dart';
+import '../../../core/models/playlist.dart';
 import '../../../core/models/track.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_scaffold.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/song_card.dart';
@@ -117,10 +119,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              PlaylistCover(
-                                size: 34,
-                                colorHex: playlist.coverPath ?? playlist.id,
-                                isFavorite: playlist.isFavorite,
+                              Row(
+                                children: [
+                                  PlaylistCover(
+                                    size: 34,
+                                    colorHex: playlist.coverPath ?? playlist.id,
+                                    isFavorite: playlist.isFavorite,
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    tooltip: 'Play playlist',
+                                    constraints: const BoxConstraints.tightFor(
+                                      width: 36,
+                                      height: 36,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    iconSize: 20,
+                                    onPressed: playlist.trackCount == 0
+                                        ? null
+                                        : () {
+                                            AppHaptics.light();
+                                            _playPlaylist(playlist);
+                                          },
+                                    icon: Icon(
+                                      active
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const Spacer(),
                               Text(
@@ -259,6 +286,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Future<void> _playPlaylist(Playlist playlist) async {
+    final tracks = await ref
+        .read(playlistRepositoryProvider)
+        .tracksForPlaylist(playlist.id);
+    if (!mounted || tracks.isEmpty) {
+      return;
+    }
+    await ref
+        .read(playerViewModelProvider)
+        .play(tracks.first, queue: tracks, activePlaylistId: playlist.id);
+  }
+
   void _showTrackActions(Track track, bool onlineAvailable) {
     final sourceNames = {
       for (final source in ref.read(appStartupControllerProvider).sources)
@@ -305,7 +344,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await _refreshHomeIfTrackExpired(error);
       _showMessage(error.message);
     } catch (_) {
-      _showMessage('Download failed. Try again.');
+      _showMessage('Download failed.');
     }
   }
 

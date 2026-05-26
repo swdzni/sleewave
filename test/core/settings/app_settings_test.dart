@@ -49,10 +49,15 @@ void main() {
 
   test('direct URLs are opt-in and copyable', () {
     final defaults = AppSettings.defaults();
-    final updated = defaults.copyWith(directUrlEnabled: true);
+    final updated = defaults.copyWith(
+      directUrlEnabled: true,
+      directUrlSourceIds: const ['yt'],
+    );
 
     expect(defaults.directUrlEnabled, isFalse);
+    expect(defaults.directUrlSourceIds, isEmpty);
     expect(updated.directUrlEnabled, isTrue);
+    expect(updated.directUrlSourceIds, ['yt']);
   });
 
   test('maps legacy theme names to new palette modes', () {

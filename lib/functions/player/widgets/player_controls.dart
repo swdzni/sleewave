@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/glow_button.dart';
 import '../view_models/player_view_model.dart';
 import 'playback_mode_button.dart';
@@ -20,7 +21,10 @@ class PlayerControls extends ConsumerWidget {
       children: [
         GlowButton(
           icon: Icons.skip_previous_rounded,
-          onPressed: vm.restartOrPrevious,
+          onPressed: () {
+            AppHaptics.light();
+            vm.restartOrPrevious();
+          },
           onLongPressStart: vm.beginRewind,
           onLongPressEnd: vm.endRewind,
           semanticLabel: 'Previous',
@@ -32,13 +36,19 @@ class PlayerControls extends ConsumerWidget {
               : Icons.play_arrow_rounded,
           active: true,
           accentColor: playbackAccent,
-          onPressed: vm.togglePlayPause,
+          onPressed: () {
+            AppHaptics.light();
+            vm.togglePlayPause();
+          },
           semanticLabel: snapshot.isPlaying ? 'Pause' : 'Play',
         ),
         const SizedBox(width: 16),
         GlowButton(
           icon: Icons.skip_next_rounded,
-          onPressed: vm.next,
+          onPressed: () {
+            AppHaptics.light();
+            vm.next();
+          },
           onLongPressStart: vm.beginFastForward,
           onLongPressEnd: vm.endFastForward,
           semanticLabel: 'Next',

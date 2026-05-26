@@ -15,6 +15,9 @@ class SearchState {
     this.hasMore = false,
     this.nextOffset = 0,
     this.error,
+    this.errorTitle = 'Search failed',
+    this.notice,
+    this.noticeTitle = 'Library updated',
     this.status = const ServerStatus.unknown(),
   });
 
@@ -29,6 +32,9 @@ class SearchState {
   final bool hasMore;
   final int nextOffset;
   final String? error;
+  final String errorTitle;
+  final String? notice;
+  final String noticeTitle;
   final ServerStatus status;
 
   bool get hasBackend => status.isConnected;
@@ -60,6 +66,9 @@ class SearchState {
     bool? hasMore,
     int? nextOffset,
     Object? error = _sentinel,
+    String? errorTitle,
+    Object? notice = _sentinel,
+    String? noticeTitle,
     ServerStatus? status,
   }) {
     return SearchState(
@@ -74,6 +83,9 @@ class SearchState {
       hasMore: hasMore ?? this.hasMore,
       nextOffset: nextOffset ?? this.nextOffset,
       error: error == _sentinel ? this.error : error as String?,
+      errorTitle: errorTitle ?? this.errorTitle,
+      notice: notice == _sentinel ? this.notice : notice as String?,
+      noticeTitle: noticeTitle ?? this.noticeTitle,
       status: status ?? this.status,
     );
   }

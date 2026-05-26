@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/track.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_list_tile.dart';
 import 'cover_art.dart';
 import 'now_playing_bars.dart';
@@ -59,7 +60,20 @@ class SongCard extends StatelessWidget {
         isDownloading ||
         (track.isLocalPlayable && onDelete != null) ||
         (!track.isLocalPlayable && canDownload && onDownload != null);
-    final onEffectiveTap = playable ? onTap : null;
+    final playAction = onTap;
+    final menuAction = onLongPress;
+    final onEffectiveTap = playable && playAction != null
+        ? () {
+            AppHaptics.light();
+            playAction();
+          }
+        : null;
+    final onEffectiveLongPress = menuAction == null
+        ? null
+        : () {
+            AppHaptics.light();
+            menuAction();
+          };
     final palette = context.palette;
     final tokens = context.themeTokens;
     return Semantics(
@@ -71,7 +85,7 @@ class SongCard extends StatelessWidget {
         active: isPlaying,
         enabled: playable,
         onTap: onEffectiveTap,
-        onLongPress: onLongPress,
+        onLongPress: onEffectiveLongPress,
         padding: EdgeInsets.symmetric(
           horizontal: compact ? 10 : 12,
           vertical: compact ? 8 : 8,
@@ -189,6 +203,17 @@ class _TrailingActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final deleteAction = onDelete;
+    final transferAction = isDownloading
+        ? null
+        : track.isLocalPlayable
+        ? deleteAction == null
+              ? null
+              : () {
+                  AppHaptics.light();
+                  deleteAction();
+                }
+        : onDownload;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -228,11 +253,7 @@ class _TrailingActions extends StatelessWidget {
           IconButton(
             visualDensity: VisualDensity.compact,
             tooltip: track.isLocalPlayable ? 'Delete' : 'Download',
-            onPressed: isDownloading
-                ? null
-                : track.isLocalPlayable
-                ? onDelete
-                : onDownload,
+            onPressed: transferAction,
             icon: AnimatedSwitcher(
               duration: AppDurations.state,
               child: isDownloading

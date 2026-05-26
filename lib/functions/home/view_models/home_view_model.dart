@@ -26,14 +26,11 @@ class HomeViewModel extends SafeChangeNotifier {
   HomeState get state => _state;
 
   Future<void> load({bool refreshStatus = false}) async {
-    if (refreshStatus) {
-      unawaited(_startup.refreshBackend(keepConnectedStatus: true));
-    }
     final activeLoad = _activeLoad;
     if (activeLoad != null) {
       return activeLoad;
     }
-    final load = _load();
+    final load = _loadWithRefresh(refreshStatus: refreshStatus);
     _activeLoad = load;
     try {
       await load;
@@ -42,6 +39,13 @@ class HomeViewModel extends SafeChangeNotifier {
         _activeLoad = null;
       }
     }
+  }
+
+  Future<void> _loadWithRefresh({required bool refreshStatus}) async {
+    if (refreshStatus) {
+      await _startup.refreshBackend(force: true, keepConnectedStatus: true);
+    }
+    await _load();
   }
 
   Future<void> _load() async {
@@ -57,7 +61,7 @@ class HomeViewModel extends SafeChangeNotifier {
     if (generation != _loadGeneration) {
       return;
     }
-    _state = HomeState(
+    _state = _state.copyWith(
       loading: false,
       status: _startup.status,
       playlists: playlists
@@ -71,7 +75,7 @@ class HomeViewModel extends SafeChangeNotifier {
   }
 
   Future<void> refreshBackend({bool force = true}) async {
-    await _startup.refreshBackend(force: force);
+    await _startup.refreshBackend(force: force, keepConnectedStatus: true);
     await load();
   }
 
@@ -133,26 +137,21 @@ class HomeViewModel extends SafeChangeNotifier {
   }
 }
 
-final homeViewModelProvider = ChangeNotifierProvider.autoDispose<HomeViewModel>(
-  (ref) {
-    final vm = HomeViewModel(
-      ref.watch(trackRepositoryProvider),
-      ref.watch(playlistRepositoryProvider),
-      ref.read(appStartupControllerProvider),
-      ref.watch(themeControllerProvider),
-    );
-    ref.listen<AppStartupController>(appStartupControllerProvider, (
-      previous,
-      next,
-    ) {
-      if (previous?.status != next.status ||
-          previous?.savedSongs != next.savedSongs) {
-        vm.load();
-      }
-    });
-    ref.listen<int>(libraryRevisionProvider, (previous, next) {
-      vm.load();
-    });
-    return vm;
-  },
-);
+final homeViewModelProvider = ChangeNotifierProvider<HomeViewModel>((ref) {
+  final vm = HomeViewModel(
+    ref.read(trackRepositoryProvider),
+    ref.read(playlistRepositoryProvider),
+    ref.read(appStartupControllerProvider),
+    ref.read(themeControllerProvider),
+  );
+  ref.listen<AppStartupController>(appStartupControllerProvider, (
+    previous,
+    next,
+  ) {
+    vm.load();
+  });
+  ref.listen<int>(libraryRevisionProvider, (previous, next) {
+    vm.load();
+  });
+  return vm;
+});

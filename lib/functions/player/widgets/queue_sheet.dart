@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/cover_art.dart';
 import '../../../core/widgets/now_playing_bars.dart';
@@ -144,7 +145,13 @@ class _QueueSheetBody extends ConsumerWidget {
                             AppSpacing.screen,
                           ),
                           itemCount: queue.length,
-                          onReorder: ref.read(queueServiceProvider).reorder,
+                          onReorderStart: (_) => AppHaptics.light(),
+                          onReorder: (oldIndex, newIndex) async {
+                            AppHaptics.light();
+                            await ref
+                                .read(playerViewModelProvider)
+                                .reorderQueue(oldIndex, newIndex);
+                          },
                           itemBuilder: (context, index) {
                             final track = queue[index];
                             final active = currentTrackId == track.id;
@@ -156,9 +163,12 @@ class _QueueSheetBody extends ConsumerWidget {
                               key: ValueKey('queue-${track.id}-$index'),
                               active: active,
                               enabled: playable,
-                              onTap: () => ref
-                                  .read(playerViewModelProvider)
-                                  .jumpToQueueIndex(index),
+                              onTap: () {
+                                AppHaptics.light();
+                                ref
+                                    .read(playerViewModelProvider)
+                                    .jumpToQueueIndex(index);
+                              },
                               child: Row(
                                 children: [
                                   CoverArt(

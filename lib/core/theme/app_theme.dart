@@ -172,7 +172,12 @@ class AppTheme {
         thumbColor: palette.primaryText,
         overlayColor: palette.accentSoft,
         trackHeight: 5,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+        trackShape: tokens.isMono
+            ? const RectangularSliderTrackShape()
+            : const RoundedRectSliderTrackShape(),
+        thumbShape: tokens.isMono
+            ? const _SquareSliderThumbShape(size: 14)
+            : const RoundSliderThumbShape(enabledThumbRadius: 8),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: palette.elevated,
@@ -339,6 +344,51 @@ class AppTheme {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(tokens.controlRadius),
       borderSide: BorderSide(color: color),
+    );
+  }
+}
+
+class _SquareSliderThumbShape extends SliderComponentShape {
+  const _SquareSliderThumbShape({required this.size});
+
+  final double size;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) {
+    return Size.square(size);
+  }
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final color =
+        ColorTween(
+          begin: sliderTheme.disabledThumbColor,
+          end: sliderTheme.thumbColor,
+        ).evaluate(enableAnimation) ??
+        sliderTheme.thumbColor ??
+        Colors.white;
+    final half = size / 2;
+    context.canvas.drawRect(
+      Rect.fromLTRB(
+        center.dx - half,
+        center.dy - half,
+        center.dx + half,
+        center.dy + half,
+      ),
+      Paint()..color = color,
     );
   }
 }

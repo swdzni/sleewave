@@ -19,6 +19,7 @@ class SettingsRepository {
   static const _recentHistoryLimit = 'recentHistoryLimit';
   static const _shareWithText = 'shareWithText';
   static const _directUrlEnabled = 'directUrlEnabled';
+  static const _directUrlSourceIds = 'directUrlSourceIds';
 
   Future<AppSettings> load() async {
     final rows = await _db.select(_db.settings).get();
@@ -42,6 +43,7 @@ class SettingsRepository {
           AppSettings.defaults().recentHistoryLimit,
       shareWithText: values[_shareWithText] == 'true',
       directUrlEnabled: values[_directUrlEnabled] == 'true',
+      directUrlSourceIds: _decodeStringList(values[_directUrlSourceIds]),
     );
     if (resolvedDeviceId == null) {
       await save(settings);
@@ -65,6 +67,7 @@ class SettingsRepository {
     await _set(_recentHistoryLimit, '${settings.recentHistoryLimit}');
     await _set(_shareWithText, '${settings.shareWithText}');
     await _set(_directUrlEnabled, '${settings.directUrlEnabled}');
+    await _set(_directUrlSourceIds, jsonEncode(settings.directUrlSourceIds));
   }
 
   Future<void> clearBackendUrl() async {

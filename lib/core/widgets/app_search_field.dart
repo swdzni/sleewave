@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 
@@ -47,7 +46,6 @@ class _AppSearchFieldState extends State<AppSearchField> {
             ? IconButton(
                 tooltip: 'Clear search',
                 onPressed: () {
-                  HapticFeedback.selectionClick();
                   _controller.clear();
                   widget.onChanged('');
                   setState(() => _hasText = false);

@@ -54,7 +54,7 @@ class ApiException implements Exception {
 
   factory ApiException.fromResponse(int? statusCode, Object? data) {
     String code = 'http_error';
-    String message = 'Something went wrong.';
+    String message = 'Online Library request failed.';
     Map<String, dynamic> details = const {};
 
     final decoded = _decodeErrorData(data);
@@ -104,13 +104,13 @@ class ApiException implements Exception {
       case 'track_already_on_device':
         return 'Already downloaded';
       case 'track_preparation_failed':
-        return 'Track could not be prepared. Try again.';
+        return 'Track could not be prepared.';
       case 'provider_unavailable':
         return 'Source is unavailable.';
       case 'internal_server_error':
-        return 'Online Library had a problem. Try again.';
+        return 'Online Library had a server problem.';
       default:
-        if (fallback == 'Something went wrong.' &&
+        if (fallback == 'Online Library request failed.' &&
             statusCodeMessage(code) != null) {
           return statusCodeMessage(code)!;
         }
@@ -120,8 +120,8 @@ class ApiException implements Exception {
 
   static String? statusCodeMessage(String code) {
     return switch (code) {
-      'http_502' => 'Track could not be prepared. Try again.',
-      'http_500' => 'Online Library had a problem. Try again.',
+      'http_502' => 'Track could not be prepared.',
+      'http_500' => 'Online Library had a server problem.',
       'http_503' => 'Source is unavailable.',
       _ => null,
     };
